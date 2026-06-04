@@ -284,11 +284,11 @@ const AdminDashboard = () => {
                             <img src={car.image} alt={`${car.brand} ${car.model}`} className="w-12 h-12 rounded-xl object-cover" />
                             <div>
                               <p className="text-sm font-semibold">{car.brand} {car.model}</p>
-                            <p className="text-xs text-gray-500">Base {car.basePrice.toLocaleString()} VNĐ → {car.dynamicPrice.toLocaleString()} VNĐ</p>
+                            <p className="text-xs text-gray-500">Base {(car.basePrice || 0).toLocaleString()} VNĐ → {(car.dynamicPrice || 0).toLocaleString()} VNĐ</p>
                           </div>
                           </div>
                           <div className="text-right">
-                            <p className={`text-sm font-semibold ${surgeColor}`}>{car.surgePercentage}%</p>
+                            <p className={`text-sm font-semibold ${surgeColor}`}>{car.surgePercentage || 0}%</p>
                             {car.surgePercentage > 20 && (
                               <span className="text-xs text-red-400">🔥 Hot demand</span>
                             )}
@@ -424,7 +424,7 @@ const AdminDashboard = () => {
                       <p className="text-sm text-gray-500 mt-1">Customer: {b.customerName || b.user?.name} ({b.customerEmail || b.user?.email})</p>
                       <p className="text-xs text-gray-600">ID: {b._id}</p>
                       <p className="text-sm text-gray-500">Pickup: {new Date(b.pickupDate).toLocaleDateString()} → Return: {new Date(b.returnDate).toLocaleDateString()}</p>
-                      <p className="text-yellow-400 font-bold mt-1">{b.totalPrice.toLocaleString()} VNĐ</p>
+                      <p className="text-yellow-400 font-bold mt-1">{(b.totalPrice || 0).toLocaleString()} VNĐ</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${b.status === 'Pending' ? 'bg-yellow-400/10 text-yellow-400' : b.status === 'Approved' ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>{b.status}</span>
