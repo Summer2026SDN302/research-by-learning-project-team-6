@@ -15,7 +15,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { getStatsAPI, getUsersAPI, deleteUserAPI, toggleUserStatusAPI, getCarsAPI, createCarAPI, deleteCarAPI, getAllBookingsAPI, updateBookingStatusAPI, getAvailabilityCalendarAPI, getPricingSurgesAPI } from '../services/api';
+import { getStatsAPI, getUsersAPI, deleteUserAPI, toggleUserStatusAPI, getCarsAPI, createCarAPI, deleteCarAPI, getAllBookingsAPI, updateBookingStatusAPI, confirmPaymentAPI, getAvailabilityCalendarAPI, getPricingSurgesAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend, Filler);
@@ -66,6 +66,15 @@ const AdminDashboard = () => {
   const handleToggleUser = async (id) => { await toggleUserStatusAPI(id); toast.success('Updated'); loadData(); };
   const handleDeleteCar = async (id) => { await deleteCarAPI(id); toast.success('Car removed'); loadData(); };
   const handleBookingStatus = async (id, status) => { await updateBookingStatusAPI(id, status); toast.success(`Booking ${status}`); loadData(); };
+  const handleConfirmPayment = async (id) => {
+    try {
+      await confirmPaymentAPI({ bookingId: id });
+      toast.success('Payment confirmed!');
+      loadData();
+    } catch (err) {
+      toast.error('Failed to confirm payment');
+    }
+  };
 
   const handleAddCar = async (e) => {
     e.preventDefault();
@@ -426,7 +435,7 @@ const AdminDashboard = () => {
                       <p className="text-sm text-gray-500">Pickup: {new Date(b.pickupDate).toLocaleDateString()} → Return: {new Date(b.returnDate).toLocaleDateString()}</p>
                       <p className="text-yellow-400 font-bold mt-1">{(b.totalPrice || 0).toLocaleString()} VNĐ</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${b.status === 'Pending' ? 'bg-yellow-400/10 text-yellow-400' : b.status === 'Approved' ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>{b.status}</span>
                       <button 
                          onClick={() => navigate(`/bookings/${b._id}`)}
@@ -436,6 +445,7 @@ const AdminDashboard = () => {
                       </button>
                       {b.status === 'Pending' && (
                         <>
+                          <button onClick={() => handleConfirmPayment(b._id)} className="p-2 px-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-xs font-bold text-blue-400 transition"><DollarSign className="w-4 h-4" /> Confirm Payment</button>
                           <button onClick={() => handleBookingStatus(b._id, 'Approved')} className="p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20"><Check className="w-4 h-4 text-green-400" /></button>
                           <button onClick={() => handleBookingStatus(b._id, 'Cancelled')} className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20"><X className="w-4 h-4 text-red-400" /></button>
                         </>
