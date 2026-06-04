@@ -1,616 +1,437 @@
 // ============================================================================
-// API SERVICE - MOCK IMPLEMENTATION
+// API SERVICE - REAL IMPLEMENTATION
 // ============================================================================
-// This file contains all API endpoints that are replaced with mock data
-// Each function simulates a network call with realistic delay
+// This file contains all API endpoints that call the backend server
+// Each function makes actual network requests to http://localhost:3000
 
-import {
-  mockUsers,
-  mockCars,
-  mockBookings,
-  mockBookedDates,
-  mockPricingSurges,
-  mockStats,
-  simulateNetworkDelay,
-  simulateError
-} from '../mocks/mockData';
-
-// Local storage for user state
-let currentUser = JSON.parse(localStorage.getItem('user')) || null;
-let allBookings = [...mockBookings];
-let allCars = [...mockCars];
-let allUsers = [...mockUsers];
+const API_BASE_URL = 'http://localhost:3000/api';
 
 // ============================================================================
 // AUTHENTICATION APIs
 // ============================================================================
 
-/**
- * Login API
- * @param {Object} credentials - { email, password }
- * @returns {Promise}
- */
 export const loginAPI = async (credentials) => {
-  console.log('[MOCK API] loginAPI called with:', credentials);
+  console.log('[API] loginAPI called with:', credentials);
   
-  // Simulate validation
-  const user = mockUsers.find(u => u.email === credentials.email);
-  
-  if (!user) {
-    return simulateError('Invalid email or password', 401);
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Login failed');
+    }
+
+    const userData = await response.json();
+    return { data: userData };
+  } catch (error) {
+    console.error('[API] Login error:', error);
+    throw error;
   }
-
-  // Mock successful login - in real app, backend would verify password
-  currentUser = {
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    phone: user.phone,
-    avatar: user.avatar
-  };
-
-  const response = await simulateNetworkDelay({
-    data: currentUser
-  });
-
-  return response;
 };
 
-/**
- * Register API
- * @param {Object} userData - { name, email, password }
- * @returns {Promise}
- */
 export const registerAPI = async (userData) => {
-  console.log('[MOCK API] registerAPI called with:', userData);
+  console.log('[API] registerAPI called with:', userData);
 
-  // Check if user exists
-  if (mockUsers.find(u => u.email === userData.email)) {
-    return simulateError('Email already registered', 400);
+  try {
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+
+    if (!response.ok) throw new Error('Registration failed');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] registerAPI error:', error);
+    throw error;
   }
-
-  // Create new user
-  const newUser = {
-    _id: '507f' + Math.random().toString(36).substr(2, 9),
-    name: userData.name,
-    email: userData.email,
-    password: 'hashed_' + userData.password,
-    role: 'user',
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    phone: userData.phone || '',
-    avatar: `https://api.dicebear.com/8.x/avataaars/svg?seed=${userData.name}`
-  };
-
-  allUsers.push(newUser);
-
-  currentUser = {
-    _id: newUser._id,
-    name: newUser.name,
-    email: newUser.email,
-    role: newUser.role,
-    phone: newUser.phone,
-    avatar: newUser.avatar
-  };
-
-  const response = await simulateNetworkDelay({
-    data: currentUser
-  });
-
-  return response;
 };
 
-/**
- * Google Login API
- * @param {Object} tokenData - { token }
- * @returns {Promise}
- */
 export const googleLoginAPI = async (tokenData) => {
-  console.log('[MOCK API] googleLoginAPI called');
+  console.log('[API] googleLoginAPI called');
 
-  // Simulate Google auth - in real app, backend would verify token
-  const mockGoogleUser = {
-    _id: 'google_' + Math.random().toString(36).substr(2, 9),
-    name: 'Google User',
-    email: 'googleuser@gmail.com',
-    role: 'user',
-    phone: '',
-    avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Google'
-  };
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tokenData)
+    });
 
-  currentUser = mockGoogleUser;
-
-  const response = await simulateNetworkDelay({
-    data: currentUser
-  });
-
-  return response;
+    if (!response.ok) throw new Error('Google login failed');
+    
+    const userData = await response.json();
+    return { data: userData };
+  } catch (error) {
+    console.error('[API] googleLoginAPI error:', error);
+    throw error;
+  }
 };
 
 // ============================================================================
 // CARS APIs
 // ============================================================================
 
-/**
- * Get all cars with optional filters
- * @param {Object} params - { brand, type, search, lat, lng, radius }
- * @returns {Promise}
- */
 export const getCarsAPI = async (params = {}) => {
-  console.log('[MOCK API] getCarsAPI called with params:', params);
+  console.log('[API] getCarsAPI called with params:', params);
 
-  let filteredCars = [...allCars];
-
-  // Apply brand filter
-  if (params.brand) {
-    filteredCars = filteredCars.filter(car => car.brand === params.brand);
+  try {
+    const response = await fetch(`${API_BASE_URL}/cars`);
+    if (!response.ok) throw new Error('Failed to fetch cars');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getCarsAPI error:', error);
+    throw error;
   }
-
-  // Apply type filter
-  if (params.type) {
-    filteredCars = filteredCars.filter(car => car.type === params.type);
-  }
-
-  // Apply search filter (brand/model/name)
-  if (params.search) {
-    const search = params.search.toLowerCase();
-    filteredCars = filteredCars.filter(car =>
-      car.name.toLowerCase().includes(search) ||
-      car.brand.toLowerCase().includes(search) ||
-      car.model.toLowerCase().includes(search)
-    );
-  }
-
-  // Apply location/radius filter (basic distance calculation)
-  if (params.lat && params.lng) {
-    const radius = params.radius || 50;
-    filteredCars = filteredCars.filter(car => {
-      const dist = Math.sqrt(
-        Math.pow(car.pickupLocationCoords.lat - params.lat, 2) +
-        Math.pow(car.pickupLocationCoords.lng - params.lng, 2)
-      ) * 111; // rough km conversion
-      return dist <= radius;
-    });
-  }
-
-  const response = await simulateNetworkDelay({
-    data: filteredCars
-  });
-
-  return response;
 };
 
-/**
- * Get single car by ID
- * @param {string} carId
- * @returns {Promise}
- */
 export const getCarByIdAPI = async (carId) => {
-  console.log('[MOCK API] getCarByIdAPI called for:', carId);
+  console.log('[API] getCarByIdAPI called for:', carId);
 
-  const car = allCars.find(c => c._id === carId);
-
-  if (!car) {
-    return simulateError('Car not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/cars/${carId}`);
+    if (!response.ok) throw new Error('Car not found');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getCarByIdAPI error:', error);
+    throw error;
   }
-
-  const response = await simulateNetworkDelay({
-    data: car
-  });
-
-  return response;
 };
 
-/**
- * Create a new car (Admin only)
- * @param {Object} carData
- * @returns {Promise}
- */
 export const createCarAPI = async (carData) => {
-  console.log('[MOCK API] createCarAPI called with:', carData);
+  console.log('[API] createCarAPI called with:', carData);
 
-  const newCar = {
-    _id: '507f' + Math.random().toString(36).substr(2, 9),
-    ...carData,
-    availability: true,
-    features: carData.features || [],
-    reviews: [],
-    pickupLocationCoords: carData.pickupLocationCoords || { lat: 10.8141, lng: 106.6663 },
-    galleryImages: carData.galleryImages || [carData.imageUrl]
-  };
-
-  allCars.push(newCar);
-
-  const response = await simulateNetworkDelay({
-    data: newCar,
-    message: 'Car created successfully'
-  });
-
-  return response;
+  try {
+    const response = await fetch(`${API_BASE_URL}/cars`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(carData)
+    });
+    
+    if (!response.ok) throw new Error('Failed to create car');
+    
+    const data = await response.json();
+    return { data, message: 'Car created successfully' };
+  } catch (error) {
+    console.error('[API] createCarAPI error:', error);
+    throw error;
+  }
 };
 
-/**
- * Delete car (Admin only)
- * @param {string} carId
- * @returns {Promise}
- */
 export const deleteCarAPI = async (carId) => {
-  console.log('[MOCK API] deleteCarAPI called for:', carId);
+  console.log('[API] deleteCarAPI called for:', carId);
 
-  const index = allCars.findIndex(c => c._id === carId);
-  if (index === -1) {
-    return simulateError('Car not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/cars/${carId}`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) throw new Error('Failed to delete car');
+    
+    const data = await response.json();
+    return { data, message: 'Car deleted successfully' };
+  } catch (error) {
+    console.error('[API] deleteCarAPI error:', error);
+    throw error;
   }
-
-  allCars.splice(index, 1);
-
-  const response = await simulateNetworkDelay({
-    data: { success: true },
-    message: 'Car deleted successfully'
-  });
-
-  return response;
 };
 
 // ============================================================================
 // BOOKINGS APIs
 // ============================================================================
 
-/**
- * Get current user's bookings
- * @returns {Promise}
- */
 export const getMyBookingsAPI = async () => {
-  console.log('[MOCK API] getMyBookingsAPI called');
+  console.log('[API] getMyBookingsAPI called');
 
-  if (!currentUser) {
-    return simulateError('Not authenticated', 401);
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings`);
+    if (!response.ok) throw new Error('Failed to fetch bookings');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getMyBookingsAPI error:', error);
+    throw error;
   }
-
-  // Filter bookings for current user
-  const userBookings = allBookings.filter(b => b.customer?._id === currentUser._id || b.customerEmail === currentUser.email);
-
-  const response = await simulateNetworkDelay({
-    data: userBookings
-  });
-
-  return response;
 };
 
-/**
- * Get booking by ID
- * @param {string} bookingId
- * @returns {Promise}
- */
 export const getBookingByIdAPI = async (bookingId) => {
-  console.log('[MOCK API] getBookingByIdAPI called for:', bookingId);
+  console.log('[API] getBookingByIdAPI called for:', bookingId);
 
-  const booking = allBookings.find(b => b._id === bookingId);
-
-  if (!booking) {
-    return simulateError('Booking not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}`);
+    if (!response.ok) throw new Error('Booking not found');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getBookingByIdAPI error:', error);
+    throw error;
   }
-
-  const response = await simulateNetworkDelay({
-    data: booking
-  });
-
-  return response;
 };
 
-/**
- * Get all bookings (Admin only)
- * @returns {Promise}
- */
 export const getAllBookingsAPI = async () => {
-  console.log('[MOCK API] getAllBookingsAPI called');
+  console.log('[API] getAllBookingsAPI called');
 
-  const response = await simulateNetworkDelay({
-    data: allBookings
-  });
-
-  return response;
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings`);
+    if (!response.ok) throw new Error('Failed to fetch bookings');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getAllBookingsAPI error:', error);
+    throw error;
+  }
 };
 
-/**
- * Create new booking
- * @param {Object} bookingPayload
- * @returns {Promise}
- */
 export const createBookingAPI = async (bookingPayload) => {
-  console.log('[MOCK API] createBookingAPI called with:', bookingPayload);
+  console.log('[API] createBookingAPI called with:', bookingPayload);
 
-  if (!currentUser) {
-    return simulateError('Not authenticated', 401);
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bookingPayload)
+    });
+    
+    if (!response.ok) throw new Error('Failed to create booking');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] createBookingAPI error:', error);
+    throw error;
   }
-
-  const car = allCars.find(c => c._id === bookingPayload.car);
-  if (!car) {
-    return simulateError('Car not found', 404);
-  }
-
-  const newBooking = {
-    _id: '507f' + Math.random().toString(36).substr(2, 9),
-    ...bookingPayload,
-    customer: currentUser,
-    transactionId: 'TXN' + Date.now(),
-    createdAt: new Date().toISOString(),
-    car: car,
-    lateFee: 0
-  };
-
-  allBookings.push(newBooking);
-
-  const response = await simulateNetworkDelay({
-    data: newBooking
-  });
-
-  return response;
 };
 
-/**
- * Confirm payment for booking
- * @param {Object} paymentData - { bookingId }
- * @returns {Promise}
- */
 export const confirmPaymentAPI = async (paymentData) => {
-  console.log('[MOCK API] confirmPaymentAPI called for:', paymentData.bookingId);
+  console.log('[API] confirmPaymentAPI called for:', paymentData.bookingId);
 
-  const booking = allBookings.find(b => b._id === paymentData.bookingId);
-  if (!booking) {
-    return simulateError('Booking not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings/${paymentData.bookingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentStatus: 'paid', status: 'Approved' })
+    });
+    
+    if (!response.ok) throw new Error('Payment confirmation failed');
+    
+    const data = await response.json();
+    return { data, message: 'Payment confirmed successfully' };
+  } catch (error) {
+    console.error('[API] confirmPaymentAPI error:', error);
+    throw error;
   }
-
-  // Update booking status
-  booking.paymentStatus = 'paid';
-  booking.status = 'Approved';
-
-  const response = await simulateNetworkDelay({
-    data: {
-      booking: booking,
-      message: 'Payment confirmed successfully'
-    }
-  });
-
-  return response;
 };
 
-/**
- * Update booking status (Admin only)
- * @param {string} bookingId
- * @param {string} status - 'Approved', 'Pending', 'Completed', 'Cancelled'
- * @returns {Promise}
- */
 export const updateBookingStatusAPI = async (bookingId, status) => {
-  console.log('[MOCK API] updateBookingStatusAPI called for:', bookingId, 'status:', status);
+  console.log('[API] updateBookingStatusAPI called for:', bookingId, 'status:', status);
 
-  const booking = allBookings.find(b => b._id === bookingId);
-  if (!booking) {
-    return simulateError('Booking not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    
+    if (!response.ok) throw new Error('Failed to update booking');
+    
+    const data = await response.json();
+    return { data, message: `Booking status updated to ${status}` };
+  } catch (error) {
+    console.error('[API] updateBookingStatusAPI error:', error);
+    throw error;
   }
-
-  booking.status = status;
-
-  const response = await simulateNetworkDelay({
-    data: booking,
-    message: `Booking status updated to ${status}`
-  });
-
-  return response;
 };
 
 // ============================================================================
 // AVAILABILITY & PRICING APIs
 // ============================================================================
 
-/**
- * Get booked dates for a car
- * @param {string} carId
- * @returns {Promise}
- */
 export const getAvailabilityByCarAPI = async (carId) => {
-  console.log('[MOCK API] getAvailabilityByCarAPI called for:', carId);
+  console.log('[API] getAvailabilityByCarAPI called for:', carId);
 
-  const bookedDates = mockBookedDates[carId] || [];
-
-  const response = await simulateNetworkDelay({
-    data: bookedDates
-  });
-
-  return response;
-};
-
-/**
- * Get pricing for a date range
- * @param {string} carId
- * @param {Object} dateRange - { startDate, endDate }
- * @returns {Promise}
- */
-export const getCarPricingAPI = async (carId, dateRange) => {
-  console.log('[MOCK API] getCarPricingAPI called for:', carId, 'dates:', dateRange);
-
-  const car = allCars.find(c => c._id === carId);
-  if (!car) {
-    return simulateError('Car not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings?carId=${carId}`);
+    if (!response.ok) throw new Error('Failed to fetch availability');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getAvailabilityByCarAPI error:', error);
+    return { data: [] };
   }
-
-  // Calculate dynamic pricing based on surge data
-  const surgePricing = mockPricingSurges.find(s => s.carId === carId);
-  const dynamicPrice = surgePricing ? surgePricing.dynamicPrice : car.pricePerDay;
-
-  const response = await simulateNetworkDelay({
-    data: {
-      basePrice: car.pricePerDay,
-      dynamicPricePerDay: dynamicPrice,
-      surgePercentage: surgePricing ? surgePricing.surgePercentage : 0,
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate
-    }
-  });
-
-  return response;
 };
 
-/**
- * Get availability calendar (Admin only)
- * @returns {Promise}
- */
+export const getCarPricingAPI = async (carId, dateRange) => {
+  console.log('[API] getCarPricingAPI called for:', carId, 'dates:', dateRange);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/cars/${carId}/pricing?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+    if (!response.ok) throw new Error('Failed to fetch pricing');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getCarPricingAPI error:', error);
+    throw error;
+  }
+};
+
 export const getAvailabilityCalendarAPI = async () => {
-  console.log('[MOCK API] getAvailabilityCalendarAPI called');
+  console.log('[API] getAvailabilityCalendarAPI called');
 
-  // Flatten all booked dates
-  const allBookedDates = Object.values(mockBookedDates).flat();
-
-  const response = await simulateNetworkDelay({
-    data: allBookedDates
-  });
-
-  return response;
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookings`);
+    if (!response.ok) throw new Error('Failed to fetch availability');
+    
+    const data = await response.json();
+    return { data: data || [] };
+  } catch (error) {
+    console.error('[API] getAvailabilityCalendarAPI error:', error);
+    return { data: [] };
+  }
 };
 
-/**
- * Get pricing surges (Admin only)
- * @returns {Promise}
- */
 export const getPricingSurgesAPI = async () => {
-  console.log('[MOCK API] getPricingSurgesAPI called');
+  console.log('[API] getPricingSurgesAPI called');
 
-  const response = await simulateNetworkDelay({
-    data: mockPricingSurges
-  });
-
-  return response;
+  try {
+    const response = await fetch(`${API_BASE_URL}/analytics/pricing-surge`);
+    if (!response.ok) throw new Error('Failed to fetch pricing surges');
+    
+    const data = await response.json();
+    return { data: data.surgePeriods || [] };
+  } catch (error) {
+    console.error('[API] getPricingSurgesAPI error:', error);
+    return { data: [] };
+  }
 };
 
 // ============================================================================
 // USERS APIs (Admin only)
 // ============================================================================
 
-/**
- * Get all users (Admin only)
- * @returns {Promise}
- */
 export const getUsersAPI = async () => {
-  console.log('[MOCK API] getUsersAPI called');
+  console.log('[API] getUsersAPI called');
 
-  // Return users without passwords
-  const usersWithoutPasswords = allUsers.map(u => ({
-    _id: u._id,
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    status: u.status,
-    phone: u.phone,
-    avatar: u.avatar,
-    createdAt: u.createdAt
-  }));
-
-  const response = await simulateNetworkDelay({
-    data: usersWithoutPasswords
-  });
-
-  return response;
+  try {
+    const response = await fetch(`${API_BASE_URL}/users`);
+    if (!response.ok) throw new Error('Failed to fetch users');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getUsersAPI error:', error);
+    throw error;
+  }
 };
 
-/**
- * Delete user (Admin only)
- * @param {string} userId
- * @returns {Promise}
- */
 export const deleteUserAPI = async (userId) => {
-  console.log('[MOCK API] deleteUserAPI called for:', userId);
+  console.log('[API] deleteUserAPI called for:', userId);
 
-  const index = allUsers.findIndex(u => u._id === userId);
-  if (index === -1) {
-    return simulateError('User not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) throw new Error('Failed to delete user');
+    
+    const data = await response.json();
+    return { data, message: 'User deleted successfully' };
+  } catch (error) {
+    console.error('[API] deleteUserAPI error:', error);
+    throw error;
   }
-
-  allUsers.splice(index, 1);
-
-  const response = await simulateNetworkDelay({
-    data: { success: true },
-    message: 'User deleted successfully'
-  });
-
-  return response;
 };
 
-/**
- * Toggle user status (Admin only)
- * @param {string} userId
- * @returns {Promise}
- */
 export const toggleUserStatusAPI = async (userId) => {
-  console.log('[MOCK API] toggleUserStatusAPI called for:', userId);
+  console.log('[API] toggleUserStatusAPI called for:', userId);
 
-  const user = allUsers.find(u => u._id === userId);
-  if (!user) {
-    return simulateError('User not found', 404);
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'toggled' })
+    });
+    
+    if (!response.ok) throw new Error('Failed to update user');
+    
+    const data = await response.json();
+    return { data, message: 'User status changed' };
+  } catch (error) {
+    console.error('[API] toggleUserStatusAPI error:', error);
+    throw error;
   }
-
-  user.status = user.status === 'active' ? 'inactive' : 'active';
-
-  const response = await simulateNetworkDelay({
-    data: {
-      ...user,
-      password: undefined
-    },
-    message: `User status changed to ${user.status}`
-  });
-
-  return response;
 };
 
 // ============================================================================
 // DASHBOARD APIs (Admin only)
 // ============================================================================
 
-/**
- * Get dashboard statistics (Admin only)
- * @returns {Promise}
- */
 export const getStatsAPI = async () => {
-  console.log('[MOCK API] getStatsAPI called');
+  console.log('[API] getStatsAPI called');
 
-  const response = await simulateNetworkDelay({
-    data: mockStats
-  });
-
-  return response;
+  try {
+    const response = await fetch(`${API_BASE_URL}/analytics/dashboard-stats`);
+    if (!response.ok) throw new Error('Failed to fetch stats');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getStatsAPI error:', error);
+    throw error;
+  }
 };
 
 // ============================================================================
-// DEBUG HELPERS
+// REVIEWS APIs
 // ============================================================================
 
-/**
- * Reset all mock data to initial state
- * Useful for testing
- */
-export const resetMockData = () => {
-  console.log('[MOCK API] Resetting all mock data to initial state');
-  allBookings = [...mockBookings];
-  allCars = [...mockCars];
-  allUsers = [...mockUsers];
-  currentUser = null;
+export const getReviewsAPI = async () => {
+  console.log('[API] getReviewsAPI called');
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/reviews`);
+    if (!response.ok) throw new Error('Failed to fetch reviews');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] getReviewsAPI error:', error);
+    throw error;
+  }
 };
 
-/**
- * Get current mock state (for debugging)
- */
-export const getMockState = () => {
-  return {
-    currentUser,
-    totalBookings: allBookings.length,
-    totalCars: allCars.length,
-    totalUsers: allUsers.length,
-    bookings: allBookings,
-    cars: allCars,
-    users: allUsers
-  };
+export const createReviewAPI = async (reviewData) => {
+  console.log('[API] createReviewAPI called with:', reviewData);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reviewData)
+    });
+    
+    if (!response.ok) throw new Error('Failed to create review');
+    
+    const data = await response.json();
+    return { data };
+  } catch (error) {
+    console.error('[API] createReviewAPI error:', error);
+    throw error;
+  }
 };
 
-console.log('%c[MOCK API SERVICE INITIALIZED]', 'color: #22c55e; font-weight: bold;');
-console.log('Using Mock Data instead of real API calls');
-console.log('This is for development and testing purposes only');
+console.log('%c[API SERVICE INITIALIZED]', 'color: #3b82f6; font-weight: bold;');
+console.log('Using Real API from http://localhost:3000');

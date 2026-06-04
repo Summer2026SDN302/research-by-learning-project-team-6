@@ -11,15 +11,28 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Import Routes
+const userRoutes = require('./routes/userRoutes');
+const carRoutes = require('./routes/carRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+
 // API Routes
+app.use('/api/users', userRoutes);
+app.use('/api/cars', carRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/analytics', analyticsRoutes);
 // app.use('/api/auth', authRoutes);
-// app.use('/api/cars', carRoutes);
-// app.use('/api/bookings', bookingRoutes);
-// app.use('/api/analytics', analyticsRoutes);
 // app.use('/api/ai', aiRoutes);
-// app.use('/api/reviews', reviewRoutes);
 // app.use('/api/payments', paymentRoutes);
 // app.use('/api/admin', adminRoutes);
+
+// Health Check
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Server is running' });
+});
 
 // Static serving is handled by Vercel directly via vercel.json
 
