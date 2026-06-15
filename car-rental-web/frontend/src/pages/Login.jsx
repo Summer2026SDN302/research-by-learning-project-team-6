@@ -110,6 +110,12 @@ const Login = () => {
               </button>
             </div>
 
+            <div className="flex justify-end mt-1">
+              <Link to="/forgot-password" className="text-sm text-yellow-400 hover:text-yellow-300 transition hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" disabled={loading}
               className="w-full bg-gradient-to-r from-yellow-400 to-amber-500 text-black py-4 rounded-2xl font-bold text-lg shadow-lg shadow-yellow-500/25 hover:shadow-yellow-500/40 transition disabled:opacity-50">
               {loading ? 'Logging in...' : 'Login'}

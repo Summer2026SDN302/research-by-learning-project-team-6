@@ -16,6 +16,10 @@ import AdminDashboard from './pages/AdminDashboard';
 import Checkout from './pages/Checkout';
 import BookingConfirmation from './pages/BookingConfirmation';
 import BookingDetail from './pages/BookingDetail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
+import SecuritySettings from './pages/SecuritySettings';
 import FloatingAIButton from './components/FloatingAIButton';
 
 const PageTransition = ({ children }) => (
@@ -45,6 +49,10 @@ const AnimatedRoutes = () => {
         <Route path="/my-bookings" element={<PageTransition><MyBookings /></PageTransition>} />
         <Route path="/bookings/:id" element={<PageTransition><BookingDetail /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+        <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
+        <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
+        <Route path="/verify-email" element={<PageTransition><VerifyEmail /></PageTransition>} />
+        <Route path="/security" element={<PageTransition><SecuritySettings /></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );
