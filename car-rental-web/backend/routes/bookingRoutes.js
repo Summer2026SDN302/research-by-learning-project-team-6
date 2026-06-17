@@ -1,5 +1,6 @@
 const express = require('express');
-const Booking = require('../models/Booking');
+const { getAllBookings, getMyBookings, getBookingById, createBooking, updateBooking, deleteBooking } = require('../controllers/bookingController');
+const { protect, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 const {

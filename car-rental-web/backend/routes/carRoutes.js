@@ -3,15 +3,9 @@ const Car = require('../models/Car');
 const { getDynamicPricing } = require('../controllers/carController');
 const router = express.Router();
 
-// Get all cars
-router.get('/', async (req, res) => {
-    try {
-        const cars = await Car.find();
-        res.json(cars);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+// Public
+router.get('/', getAllCars);
+router.get('/:id', getCarById);
 
 // Get car by ID
 router.get('/:id', async (req, res) => {

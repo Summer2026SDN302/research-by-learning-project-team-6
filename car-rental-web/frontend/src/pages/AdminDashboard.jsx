@@ -15,7 +15,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { getStatsAPI, getUsersAPI, deleteUserAPI, toggleUserStatusAPI, getCarsAPI, createCarAPI, deleteCarAPI, getAllBookingsAPI, updateBookingStatusAPI, confirmPaymentAPI, getAvailabilityCalendarAPI, getPricingSurgesAPI } from '../services/api';
+import { getStatsAPI, getTopCarsAPI, getUsersAPI, deleteUserAPI, toggleUserStatusAPI, getCarsAPI, createCarAPI, deleteCarAPI, getAllBookingsAPI, updateBookingStatusAPI, confirmPaymentAPI, getAvailabilityCalendarAPI, getPricingSurgesAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend, Filler);
@@ -44,22 +44,61 @@ const AdminDashboard = () => {
   }, []);
 
   const loadData = async () => {
-    try {
-      const [statsRes, usersRes, carsRes, bookingsRes, availabilityRes, surgeRes] = await Promise.all([
-        getStatsAPI(),
-        getUsersAPI(),
-        getCarsAPI(),
-        getAllBookingsAPI(),
-        getAvailabilityCalendarAPI(),
-        getPricingSurgesAPI()
-      ]);
-      setStats(statsRes.data);
-      setUsers(usersRes.data);
-      setCars(carsRes.data);
-      setBookings(bookingsRes.data);
-      setCalendarBookings(availabilityRes.data || []);
-      setPricingSurges(surgeRes.data || []);
-    } catch (err) { console.error(err); }
+    const [statsRes, usersRes, carsRes, bookingsRes, topCarsRes, availabilityRes, surgeRes] = await Promise.allSettled([
+      getStatsAPI(),
+      getUsersAPI(),
+      getCarsAPI(),
+      getAllBookingsAPI(),
+      getTopCarsAPI(),
+      getAvailabilityCalendarAPI(),
+      getPricingSurgesAPI()
+    ]);
+
+    if (statsRes.status === 'fulfilled') {
+      const statsData = { ...statsRes.value.data };
+      if (topCarsRes.status === 'fulfilled') {
+        statsData.topCars = topCarsRes.value.data.map((item) => ({
+          name: item.carDetails?.name || 'Unknown',
+          brand: item.carDetails?.brand || '',
+          model: item.carDetails?.model || '',
+          count: item.bookingCount || 0,
+          imageUrl: item.carDetails?.imageUrl || ''
+        }));
+      }
+      setStats(statsData);
+    } else {
+      console.error('Failed to load stats:', statsRes.reason);
+    }
+
+    if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data);
+    else console.error('Failed to load users:', usersRes.reason);
+
+    if (carsRes.status === 'fulfilled') setCars(carsRes.value.data);
+    else console.error('Failed to load cars:', carsRes.reason);
+
+    if (bookingsRes.status === 'fulfilled') setBookings(bookingsRes.value.data);
+    else console.error('Failed to load bookings:', bookingsRes.reason);
+
+    if (availabilityRes.status === 'fulfilled') setCalendarBookings(availabilityRes.value.data || []);
+    else console.error('Failed to load availability:', availabilityRes.reason);
+
+    if (surgeRes.status === 'fulfilled') {
+      setPricingSurges(surgeRes.value.data.map((item) => {
+        const basePrice = item.currentPrice || 0;
+        const surgePercentage = item.bookingCount > 8 ? 25 : item.bookingCount > 4 ? 15 : item.bookingCount > 2 ? 10 : 0;
+        return {
+          carId: item._id,
+          brand: item.brand || '',
+          model: item.model || item.carName || '',
+          image: item.imageUrl || '',
+          basePrice,
+          dynamicPrice: Math.round(basePrice * (1 + surgePercentage / 100)),
+          surgePercentage
+        };
+      }));
+    } else {
+      console.error('Failed to load pricing surges:', surgeRes.reason);
+    }
   };
 
   const handleDeleteUser = async (id) => { await deleteUserAPI(id); toast.success('User deleted'); loadData(); };
