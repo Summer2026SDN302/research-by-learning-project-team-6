@@ -35,16 +35,49 @@ export const createCarAPI = (data) => API.post('/cars', data);
 export const updateCarAPI = (id, data) => API.put(`/cars/${id}`, data);
 export const deleteCarAPI = (id) => API.delete(`/cars/${id}`);
 
-// Bookings
-export const createBookingAPI = (data) => API.post('/bookings', data);
-export const getMyBookingsAPI = () => API.get('/bookings/my-bookings');
-export const getBookingByIdAPI = (id) => API.get(`/bookings/${id}`);
-export const getAllBookingsAPI = () => API.get('/bookings');
-export const updateBookingStatusAPI = (id, status) => API.put(`/bookings/${id}`, { status });
-export const deleteBookingAPI = (id) => API.delete(`/bookings/${id}`);
-export const getStatsAPI = () => API.get('/analytics/dashboard-stats');
-export const getTopCarsAPI = () => API.get('/analytics/top-cars');
-export const getAvailabilityByCarAPI = (carId) => API.get(`/bookings/availability/${carId}`);
-export const getAvailabilityCalendarAPI = () => API.get('/analytics/surge-availability');
-export const getPricingSurgesAPI = () => API.get('/analytics/price-optimization');
-export const chatAIAPI = (data) => API.post('/ai/chat', data);
+// ==================== Bookings - Customer ====================
+
+export const createBookingAPI = (data) =>
+  API.post('/bookings/customer', data);
+
+export const getMyBookingsAPI = () =>
+  API.get('/bookings/customer/my-bookings');
+
+export const getBookingByIdAPI = (id) =>
+  API.get(`/bookings/customer/${id}`);
+
+export const getAvailabilityByCarAPI = (carId) =>
+  API.get(`/bookings/customer/availability/${carId}`);
+
+export const extendBookingAPI = (id, data) =>
+  API.post(`/bookings/customer/${id}/extend`, data);
+
+export const cancelBookingAPI = (id) =>
+  API.patch(`/bookings/customer/${id}/cancel`);
+
+
+// ==================== Bookings - Admin ====================
+
+export const getAllBookingsAPI = () =>
+  API.get('/bookings');
+
+export const updateBookingStatusAPI = (id, status) =>
+  API.put(`/bookings/${id}`, { status });
+
+export const deleteBookingAPI = (id) =>
+  API.delete(`/bookings/${id}`);
+
+export const getStatsAPI = () =>
+  API.get('/bookings/admin/stats');
+
+export const getAvailabilityCalendarAPI = () =>
+  API.get('/bookings/admin/availability');
+
+
+// ==================== Others ====================
+
+export const getPricingSurgesAPI = () =>
+  API.get('/analytics/pricing-surges');
+
+export const chatAIAPI = (data) =>
+  API.post('/ai/chat', data);

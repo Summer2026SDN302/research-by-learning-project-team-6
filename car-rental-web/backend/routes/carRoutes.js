@@ -1,16 +1,57 @@
 const express = require('express');
-const { getAllCars, getCarById, createCar, updateCar, deleteCar } = require('../controllers/carController');
-const { protect, adminOnly } = require('../middleware/auth');
-
+const Car = require('../models/Car');
+const { getDynamicPricing } = require('../controllers/carController');
 const router = express.Router();
 
 // Public
 router.get('/', getAllCars);
 router.get('/:id', getCarById);
 
-// Admin
-router.post('/', protect, adminOnly, createCar);
-router.put('/:id', protect, adminOnly, updateCar);
-router.delete('/:id', protect, adminOnly, deleteCar);
+// Get car by ID
+router.get('/:id', async (req, res) => {
+    try {
+        const car = await Car.findById(req.params.id);
+        if (!car) return res.status(404).json({ error: 'Car not found' });
+        res.json(car);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create car
+router.post('/', async (req, res) => {
+    try {
+        const newCar = new Car(req.body);
+        const savedCar = await newCar.save();
+        res.status(201).json(savedCar);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Update car
+router.put('/:id', async (req, res) => {
+    try {
+        const updatedCar = await Car.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+        res.json(updatedCar);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Delete car
+router.delete('/:id', async (req, res) => {
+    try {
+        await Car.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Car deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.get('/:id/pricing', getDynamicPricing);
 
 module.exports = router;
