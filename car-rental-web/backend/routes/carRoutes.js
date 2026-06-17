@@ -1,6 +1,6 @@
 const express = require('express');
 const Car = require('../models/Car');
-
+const { getDynamicPricing } = require('../controllers/carController');
 const router = express.Router();
 
 // Get all cars
@@ -58,5 +58,6 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+router.get('/:id/pricing', getDynamicPricing);
 
 module.exports = router;

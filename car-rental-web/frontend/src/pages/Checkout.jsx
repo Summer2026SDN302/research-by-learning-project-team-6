@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { QrCode, CreditCard, Lock, Calendar, MapPin, ShieldCheck, Check, Clock } from 'lucide-react';
-import { createBookingAPI, confirmPaymentAPI } from '../services/api';
+import { QrCode, Lock, Calendar, MapPin, ShieldCheck, Check, Clock } from 'lucide-react';
+import { confirmPaymentAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -61,12 +62,48 @@ const Checkout = () => {
         customerPhone: customerForm.phone,
         note: customerForm.note,
       };
-      const { data } = await createBookingAPI(payload);
+
+      // ==================== ĐOẠN SỬA LỖI 401: ÉP HEADER TOKEN TỰ ĐỘNG ====================
+      const storedUser = localStorage.getItem('user');
+      let token = '';
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          token = parsed?.token || '';
+        } catch (e) {
+          token = '';
+        }
+      }
+      
+      if (!token) {
+        token = localStorage.getItem('token') || localStorage.getItem('accessToken') || '';
+      }
+      // THÊM DÒNG NÀY VÀO ĐỂ CHECK:
+      console.log("=== TOKEN THỰC TẾ LẤY ĐƯỢC ===", token); 
+      console.log("=== DỮ LIỆU USER TRONG LOCALSTORAGE ===", localStorage.getItem('user'));
+
+      if (!token) {
+        toast.error('Phiên đăng nhập hết hạn hoặc không tìm thấy Token. Vui lòng đăng nhập lại!');
+        setProcessing(false);
+        return;
+      }
+
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+      
+      const { data } = await axios.post(`${baseUrl}/bookings/customer`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      // ==================================================================================
+
       setPendingBookingId(data._id);
       setQrStep(true);
       setQrTimer(30);
     } catch (error) {
-      toast.error('Could not initialize payment. Please try again.');
+      console.error("Lỗi tạo booking:", error);
+      const errorMsg = error.response?.data?.error || 'Could not initialize payment. Please try again.';
+      toast.error(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -92,7 +129,8 @@ const Checkout = () => {
     } finally {
       setProcessing(false);
     }
-  };
+  }
+  
 
   if (!checkoutPayload) return null;
 
