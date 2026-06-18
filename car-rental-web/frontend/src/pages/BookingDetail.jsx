@@ -62,15 +62,14 @@ const handleExtend = async (e) => {
   
   setExtending(true);
   try {
-    // 🎯 CHỖ SỬA CHÍ MẠNG: Thêm cặp dấu ngoặc nhọn { } quanh newReturnDate
-    // Bỏ luôn tham số user?._id thừa đi vì Backend đã tự lấy từ Token qua middleware protect rồi.
+
     await extendBookingAPI(id, { newReturnDate });
     
     toast.success("Đã gia hạn đặt xe thành công!");
     setShowExtendModal(false);
-    fetchBookingDetail(); // Load lại dữ liệu mới cập nhật từ Server
+    fetchBookingDetail(); 
   } catch (err) {
-    // Log chi tiết lỗi ra console trình duyệt để dễ debug nếu có phát sinh lịch trùng
+  
     console.error("Extend Error:", err.response?.data);
     toast.error(err.response?.data?.error || err.message || "Không thể gia hạn đặt xe.");
   } finally {
