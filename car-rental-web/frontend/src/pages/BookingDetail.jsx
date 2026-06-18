@@ -49,28 +49,34 @@ const BookingDetail = () => {
     }
   };
 
-  const handleExtend = async (e) => {
-    e.preventDefault();
-    if (!newReturnDate) {
-      toast.error("Vui lòng chọn ngày trả xe mới.");
-      return;
-    }
-    if (new Date(newReturnDate) <= new Date(booking.returnDate)) {
-      toast.error("Ngày trả xe mới phải sau ngày trả xe hiện tại.");
-      return;
-    }
-    setExtending(true);
-    try {
-      await extendBookingAPI(id, newReturnDate, user?._id);
-      toast.success("Đã gia hạn đặt xe thành công!");
-      setShowExtendModal(false);
-      fetchBookingDetail();
-    } catch (err) {
-      toast.error(err.response?.data?.error || err.message || "Không thể gia hạn đặt xe.");
-    } finally {
-      setExtending(false);
-    }
-  };
+const handleExtend = async (e) => {
+  e.preventDefault();
+  if (!newReturnDate) {
+    toast.error("Vui lòng chọn ngày trả xe mới.");
+    return;
+  }
+  if (new Date(newReturnDate) <= new Date(booking.returnDate)) {
+    toast.error("Ngày trả xe mới phải sau ngày trả xe hiện tại.");
+    return;
+  }
+  
+  setExtending(true);
+  try {
+    // 🎯 CHỖ SỬA CHÍ MẠNG: Thêm cặp dấu ngoặc nhọn { } quanh newReturnDate
+    // Bỏ luôn tham số user?._id thừa đi vì Backend đã tự lấy từ Token qua middleware protect rồi.
+    await extendBookingAPI(id, { newReturnDate });
+    
+    toast.success("Đã gia hạn đặt xe thành công!");
+    setShowExtendModal(false);
+    fetchBookingDetail(); // Load lại dữ liệu mới cập nhật từ Server
+  } catch (err) {
+    // Log chi tiết lỗi ra console trình duyệt để dễ debug nếu có phát sinh lịch trùng
+    console.error("Extend Error:", err.response?.data);
+    toast.error(err.response?.data?.error || err.message || "Không thể gia hạn đặt xe.");
+  } finally {
+    setExtending(false);
+  }
+};
 
   const handleDelete = async () => {
     if (!window.confirm("Bạn có chắc muốn xóa lịch sử đặt xe này? Hành động này không thể hoàn tác.")) return;
@@ -215,7 +221,7 @@ const BookingDetail = () => {
               </div>
 
               {/* Trip Details */}
-              <div className="space-y-4">
+              <div className="space-y-4">extendBookingAPIextendBookingAPI
                  <h4 className="text-sm font-bold uppercase tracking-widest text-gray-500 border-b border-white/5 pb-2">Trip Timeline</h4>
                  <div className="flex flex-col md:flex-row gap-6">
                     <div className="flex-1 p-4 rounded-2xl bg-white/5 flex items-start gap-3">
