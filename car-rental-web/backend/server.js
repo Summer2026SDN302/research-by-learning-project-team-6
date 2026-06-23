@@ -11,7 +11,7 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 // const aiRoutes = require('./routes/aiRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
  const paymentRoutes = require('./routes/paymentRoutes');
-// const adminRoutes = require('./routes/adminRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -28,7 +28,7 @@ app.use('/api/analytics', analyticsRoutes);
 // app.use('/api/ai', aiRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
-// app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Static serving is handled by Vercel directly via vercel.json
 

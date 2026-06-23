@@ -77,7 +77,25 @@ export const getAvailabilityCalendarAPI = () =>
 // ==================== Others ====================
 
 export const getPricingSurgesAPI = () =>
-  API.get('/analytics/pricing-surges');
+  API.get('/analytics/pricing-surge');
 
 export const chatAIAPI = (data) =>
   API.post('/ai/chat', data);
+
+// Admin - Vouchers
+export const getAdminVouchersAPI = () => API.get('/admin/vouchers');
+export const createAdminVoucherAPI = (data) => API.post('/admin/vouchers', data);
+export const updateAdminVoucherAPI = (id, data) => API.put(`/admin/vouchers/${id}`, data);
+export const deleteAdminVoucherAPI = (id) => API.delete(`/admin/vouchers/${id}`);
+
+// Admin - Pricing Surges
+export const getAdminAllSurgesAPI = () => API.get('/admin/pricing-surges/all');
+export const getAdminActiveSurgesAPI = () => API.get('/admin/pricing-surges');
+export const createAdminSurgeAPI = (data) => API.post('/admin/pricing-surges', data);
+export const updateAdminSurgeAPI = (id, data) => API.put(`/admin/pricing-surges/${id}`, data);
+export const deleteAdminSurgeAPI = (id) => API.delete(`/admin/pricing-surges/${id}`);
+
+// Admin - Timeline & Occupancy
+export const getCarsTimelineAPI = (startDate) => API.get('/admin/cars-timeline', { params: { startDate } });
+export const getCalendarOccupancyAPI = (month) => API.get('/admin/calendar-occupancy', { params: { month } });
+export const getTopCarsAPI = () => API.get('/analytics/top-cars');
