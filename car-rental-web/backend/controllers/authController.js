@@ -274,8 +274,24 @@ exports.resetPassword = async (req, res) => {
 
 // ─── ADMIN: User Management ───────────────────────────────────────────────────
 exports.getUsers = async (req, res) => {
-  try { res.json(await User.find().select('-password -refreshTokens')); }
-  catch (error) { res.status(500).json({ error: error.message }); }
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+
+    const [users, totalUsers] = await Promise.all([
+      User.find().sort({ createdAt: -1 }).skip(skip).limit(limit).select('-password -refreshTokens'),
+      User.countDocuments()
+    ]);
+
+    const hasMore = skip + users.length < totalUsers;
+
+    if (req.query.page || req.query.limit) {
+      return res.json({ users, pagination: { page, limit, totalUsers, hasMore } });
+    }
+
+    res.json(users);
+  } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
 exports.deleteUser = async (req, res) => {

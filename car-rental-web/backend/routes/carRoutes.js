@@ -1,7 +1,31 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const Car = require('../models/Car');
 const { getDynamicPricing } = require('../controllers/carController');
 const router = express.Router();
+
+const optionalAuth = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            req.user = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            req.user = null;
+        }
+    }
+    next();
+};
+
+const restrictAdminMutations = (req, res, next) => {
+    if (req.user?.role === 'admin' && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return res.status(403).json({ message: 'Admin access to cars is read-only' });
+    }
+    next();
+};
+
+router.use(optionalAuth);
+router.use(restrictAdminMutations);
 
 // Public
 router.get('/', async (req, res) => {

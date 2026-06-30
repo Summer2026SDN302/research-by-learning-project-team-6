@@ -6,6 +6,7 @@ const {
   createVoucher,
   updateVoucher,
   deleteVoucher,
+  getCommissionSummary,
   getPricingSurges,
   getAllPricingSurges,
   createPricingSurge,
@@ -14,19 +15,10 @@ const {
   getCarsTimeline,
   getCalendarOccupancy
 } = require('../controllers/adminController');
+const { listPendingSellerRequests, reviewSellerRequest } = require('../controllers/sellerRequestController');
 
-router.get('/vouchers', protect, adminOnly, getVouchers);
-router.post('/vouchers', protect, adminOnly, createVoucher);
-router.put('/vouchers/:id', protect, adminOnly, updateVoucher);
-router.delete('/vouchers/:id', protect, adminOnly, deleteVoucher);
-
-router.get('/pricing-surges', protect, adminOnly, getPricingSurges);
-router.get('/pricing-surges/all', protect, adminOnly, getAllPricingSurges);
-router.post('/pricing-surges', protect, adminOnly, createPricingSurge);
-router.put('/pricing-surges/:id', protect, adminOnly, updatePricingSurge);
-router.delete('/pricing-surges/:id', protect, adminOnly, deletePricingSurge);
-
-router.get('/cars-timeline', protect, adminOnly, getCarsTimeline);
-router.get('/calendar-occupancy', protect, adminOnly, getCalendarOccupancy);
+router.get('/commissions', protect, adminOnly, getCommissionSummary);
+router.get('/seller-requests', protect, adminOnly, listPendingSellerRequests);
+router.put('/seller-requests/:id/review', protect, adminOnly, reviewSellerRequest);
 
 module.exports = router;

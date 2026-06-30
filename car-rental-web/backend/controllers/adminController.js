@@ -58,6 +58,66 @@ exports.deleteVoucher = async (req, res) => {
   }
 };
 
+// GET /api/admin/commissions
+exports.getCommissionSummary = async (req, res) => {
+  try {
+    const { month } = req.query;
+    const match = { paymentStatus: 'paid' };
+
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      const [year, mon] = month.split('-').map(Number);
+      match.createdAt = {
+        $gte: new Date(year, mon - 1, 1),
+        $lt: new Date(year, mon, 1)
+      };
+    }
+
+    const commissionSummary = await Booking.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            car: '$car'
+          },
+          grossRevenue: { $sum: '$totalPrice' },
+          bookingCount: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'cars',
+          localField: '_id.car',
+          foreignField: '_id',
+          as: 'carInfo'
+        }
+      },
+      { $unwind: { path: '$carInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          year: '$_id.year',
+          month: '$_id.month',
+          carId: '$_id.car',
+          carName: { $ifNull: ['$carInfo.name', 'Unknown Car'] },
+          brand: { $ifNull: ['$carInfo.brand', ''] },
+          model: { $ifNull: ['$carInfo.model', ''] },
+          grossRevenue: { $round: ['$grossRevenue', 2] },
+          bookingCount: 1,
+          commissionRate: 0.1,
+          adminCommission: { $round: [{ $multiply: ['$grossRevenue', 0.1] }, 2] }
+        }
+      },
+      { $sort: { year: -1, month: -1, grossRevenue: -1 } }
+    ]);
+
+    res.json(commissionSummary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ═══════════════════════════════════════════════════════
 //  DYNAMIC PRICING SURGES
 // ═══════════════════════════════════════════════════════
