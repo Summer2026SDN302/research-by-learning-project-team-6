@@ -1,6 +1,30 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const Booking = require('../models/Booking');
 const router = express.Router();
+
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      req.user = null;
+    }
+  }
+  next();
+};
+
+const restrictAdminBookings = (req, res, next) => {
+  if (req.user?.role === 'admin' && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return res.status(403).json({ message: 'Admin access to bookings is read-only' });
+  }
+  next();
+};
+
+router.use(optionalAuth);
+router.use(restrictAdminBookings);
 
 const {
   createBooking,

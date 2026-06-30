@@ -88,6 +88,13 @@ export const createAdminVoucherAPI = (data) => API.post('/admin/vouchers', data)
 export const updateAdminVoucherAPI = (id, data) => API.put(`/admin/vouchers/${id}`, data);
 export const deleteAdminVoucherAPI = (id) => API.delete(`/admin/vouchers/${id}`);
 
+// Admin - Commissions
+export const getAdminCommissionSummaryAPI = () => API.get('/admin/commissions');
+
+// Admin - Seller Requests
+export const getPendingSellerRequestsAPI = () => API.get('/admin/seller-requests');
+export const reviewSellerRequestAPI = (id, data) => API.put(`/admin/seller-requests/${id}/review`, data);
+
 // Admin - Pricing Surges
 export const getAdminAllSurgesAPI = () => API.get('/admin/pricing-surges/all');
 export const getAdminActiveSurgesAPI = () => API.get('/admin/pricing-surges');

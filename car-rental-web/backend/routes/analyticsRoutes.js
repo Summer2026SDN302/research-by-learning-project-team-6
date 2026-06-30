@@ -7,11 +7,7 @@ const {
     getTopCars,
     getCarTypeDistribution,
     getRevenueByType,
-    getLocationAnalytics,
-    getPricingSurge,
-    getSurgeAvailability,
-    getDemandForecast,
-    getPriceOptimization
+    getLocationAnalytics
 } = require('../controllers/analyticsController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -26,9 +22,5 @@ router.get('/top-cars', protect, adminOnly, getTopCars);
 router.get('/car-type-distribution', protect, adminOnly, getCarTypeDistribution);
 router.get('/revenue-by-type', protect, adminOnly, getRevenueByType);
 router.get('/analytics-by-location', protect, adminOnly, getLocationAnalytics);
-router.get('/pricing-surge', protect, adminOnly, getPricingSurge);
-router.get('/surge-availability', protect, adminOnly, getSurgeAvailability);
-router.get('/demand-forecast', protect, adminOnly, getDemandForecast);
-router.get('/price-optimization', protect, adminOnly, getPriceOptimization);
 
 module.exports = router;
