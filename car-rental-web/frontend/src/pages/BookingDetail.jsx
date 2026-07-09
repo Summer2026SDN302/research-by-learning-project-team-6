@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Calendar, MapPin, CreditCard, ChevronLeft, Download, Hash, Phone, Mail, User, Clock, ShieldCheck, CalendarPlus, XCircle, Trash2 } from 'lucide-react';
-import { getBookingByIdAPI, cancelBookingAPI, extendBookingAPI, deleteBookingAPI } from '../services/api';
+import { CheckCircle, Calendar, MapPin, CreditCard, ChevronLeft, Download, Hash, Phone, Mail, User, Clock, ShieldCheck, CalendarPlus, XCircle, Trash2, Star } from 'lucide-react';
+import { getBookingByIdAPI, cancelBookingAPI, extendBookingAPI, deleteBookingAPI, createReviewAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -16,6 +16,10 @@ const BookingDetail = () => {
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [newReturnDate, setNewReturnDate] = useState('');
   const [extending, setExtending] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const backPath = user?.role === 'admin' ? '/admin' : '/my-bookings';
 
@@ -80,6 +84,30 @@ const BookingDetail = () => {
       navigate(backPath);
     } catch (err) {
       toast.error(err.message || "Không thể xóa.");
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewComment.trim()) {
+      toast.error("Please enter your review comment.");
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      await createReviewAPI({
+        car: booking.car._id,
+        booking: booking._id,
+        rating: reviewRating,
+        comment: reviewComment.trim()
+      });
+      toast.success("Thank you for your review!");
+      setShowReviewModal(false);
+      setReviewComment('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || "Could not submit review.");
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -160,6 +188,19 @@ const BookingDetail = () => {
                   className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg"
                 >
                   <CalendarPlus className="w-4 h-4" /> Gia Hạn
+                </button>
+              )}
+
+              {booking.status === 'Completed' && (
+                <button 
+                  onClick={() => {
+                    setReviewRating(5);
+                    setReviewComment('');
+                    setShowReviewModal(true);
+                  }}
+                  className="flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg"
+                >
+                  <Star className="w-4 h-4" fill="currentColor" /> Write Review
                 </button>
               )}
 
@@ -374,6 +415,91 @@ const BookingDetail = () => {
                       <span className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
                     ) : (
                       "Xác Nhận"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showReviewModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowReviewModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            />
+            
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-md bg-[#111827] border border-white/10 rounded-3xl p-6 shadow-2xl z-10"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Rate Your Trip</h3>
+                <button 
+                  onClick={() => setShowReviewModal(false)} 
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleReviewSubmit} className="space-y-6">
+                <div className="text-center">
+                  <p className="text-sm text-gray-400 mb-2">Your rating for {booking.car?.brand} {booking.car?.model}</p>
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setReviewRating(star)}
+                        className="text-yellow-400 hover:scale-110 transition p-1"
+                      >
+                        <Star 
+                          size={32} 
+                          fill={star <= reviewRating ? "currentColor" : "none"} 
+                          stroke="currentColor" 
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs text-gray-400 font-bold uppercase tracking-wider">Review Comment *</label>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Share your rental experience (cleanliness, smoothness, timing...)"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-yellow-400/50 transition font-medium h-32 resize-none text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => setShowReviewModal(false)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-2xl transition text-sm uppercase tracking-wider"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={reviewSubmitting}
+                    className="flex-1 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-black font-bold py-3.5 rounded-2xl shadow-lg transition text-sm uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {reviewSubmitting ? (
+                      <span className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      "Submit Review"
                     )}
                   </button>
                 </div>

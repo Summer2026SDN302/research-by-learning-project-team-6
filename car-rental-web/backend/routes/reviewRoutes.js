@@ -1,16 +1,13 @@
 const express = require('express');
 const { getAllReviews, getReviewById, createReview, updateReview, deleteReview } = require('../controllers/reviewController');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Public
+router.get('/', getAllReviews);
 router.get('/:id', getReviewById);
-router.post('/', createReview);
-
-// Admin
-router.get('/', protect, adminOnly, getAllReviews);
-router.put('/:id', protect, adminOnly, updateReview);
-router.delete('/:id', protect, adminOnly, deleteReview);
+router.post('/', protect, createReview);
+router.put('/:id', protect, updateReview);
+router.delete('/:id', protect, deleteReview);
 
 module.exports = router;
