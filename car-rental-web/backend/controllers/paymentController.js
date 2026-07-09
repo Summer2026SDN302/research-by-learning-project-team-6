@@ -1,5 +1,6 @@
 const Booking = require('../models/Booking');
 const nodemailer = require('nodemailer');
+const Notification = require('../models/Notification');
 
 exports.confirmPayment = async (req, res) => {
   try {
@@ -11,6 +12,14 @@ exports.confirmPayment = async (req, res) => {
     booking.status = 'Approved';
     booking.transactionId = 'MB_' + Date.now();
     await booking.save();
+
+    await Notification.create({
+      user: booking.user,
+      title: 'Payment Confirmed',
+      body: `Your payment of ${booking.totalPrice.toLocaleString()} VNĐ has been confirmed. Booking approved!`,
+      type: 'payment',
+      relatedId: booking._id.toString()
+    }).catch(() => {});
 
     // Send email logic (Nodemailer)
     try {

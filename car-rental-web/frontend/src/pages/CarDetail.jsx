@@ -4,7 +4,7 @@ import 'react-calendar/dist/Calendar.css';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Users, Fuel, Settings, MapPin, ArrowLeft, X, Maximize2, Navigation, ShieldCheck, ShieldAlert, CarTaxiFront, Baby, Calendar as CalendarIcon } from 'lucide-react';
-import { getCarByIdAPI, getAvailabilityByCarAPI, getCarPricingAPI } from '../services/api';
+import { getCarByIdAPI, getAvailabilityByCarAPI, getCarPricingAPI, getReviewsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -33,6 +33,7 @@ const CarDetail = () => {
   const [bookedDates, setBookedDates] = useState([]);
   const [pricing, setPricing] = useState(null);
   const [pricingLoading, setPricingLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
 
   // Hàm helper chuyển đổi ngày sang Chuỗi Local "YYYY-MM-DD" không lo lệch múi giờ UTC
   const toLocalDate = (d) => {
@@ -42,9 +43,10 @@ const CarDetail = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [{ data }, availabilityRes] = await Promise.all([
+        const [{ data }, availabilityRes, reviewsRes] = await Promise.all([
           getCarByIdAPI(id),
-          getAvailabilityByCarAPI(id)
+          getAvailabilityByCarAPI(id),
+          getReviewsAPI({ car: id }).catch(() => ({ data: [] }))
         ]);
         setCar(data);
         setBooking((prev) => ({
@@ -54,6 +56,7 @@ const CarDetail = () => {
           dropoffLocationCoords: data.pickupLocationCoords || prev.dropoffLocationCoords
         }));
         setBookedDates(availabilityRes.data || []);
+        setReviews(reviewsRes.data || []);
       } catch (err) { console.error(err); }
       setLoading(false);
     })();
@@ -355,19 +358,24 @@ const CarDetail = () => {
                 )}
                 {activeTab === 'Reviews' && (
                   <motion.div key="reviews" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-                    {[
-                      { name: 'Ava L.', rating: 5, text: 'Flawless experience. The car felt brand new and the pickup was effortless.' },
-                      { name: 'Noah R.', rating: 5, text: 'Luxury service, seamless booking, and an incredible ride.' },
-                      { name: 'Mia K.', rating: 4.8, text: 'Premium feel throughout. Would book again for special trips.' },
-                    ].map((review) => (
-                      <div key={review.name} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold">{review.name}</span>
-                          <span className="flex items-center gap-1 text-yellow-400 text-sm"><Star className="w-4 h-4" fill="currentColor" /> {review.rating}</span>
+                    {reviews.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-6">No reviews yet for this car.</p>
+                    ) : (
+                      reviews.map((review, idx) => (
+                        <div key={review._id || idx} className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold">{review.user?.name || 'Customer'}</span>
+                            <span className="flex items-center gap-1 text-yellow-400 text-sm">
+                              <Star className="w-4 h-4" fill="currentColor" /> {review.rating}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-400">{review.comment}</p>
+                          <span className="text-[10px] text-gray-500 mt-2 block">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </span>
                         </div>
-                        <p className="text-sm text-gray-400">{review.text}</p>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

@@ -82,6 +82,27 @@ export const getPricingSurgesAPI = () =>
 export const chatAIAPI = (data) =>
   API.post('/ai/chat', data);
 
+export const getAIChatHistoryAPI = () =>
+  API.get('/ai/history');
+
+export const getNotificationsAPI = () =>
+  API.get('/notifications');
+
+export const markNotificationReadAPI = (id) =>
+  API.patch(`/notifications/${id}/read`);
+
+export const markAllNotificationsReadAPI = () =>
+  API.patch('/notifications/read-all');
+
+export const createReviewAPI = (data) =>
+  API.post('/reviews', data);
+
+export const getReviewsAPI = (params) =>
+  API.get('/reviews', { params });
+
+export const deleteReviewAPI = (id) =>
+  API.delete(`/reviews/${id}`);
+
 // Admin - Vouchers
 export const getAdminVouchersAPI = () => API.get('/admin/vouchers');
 export const createAdminVoucherAPI = (data) => API.post('/admin/vouchers', data);

@@ -1,5 +1,6 @@
 const Booking = require('../models/Booking');
 const Car = require('../models/Car');
+const Notification = require('../models/Notification');
 
 // ─────────────────────────────────────────────
 //  HELPERS
@@ -95,6 +96,14 @@ exports.createBooking = async (req, res) => {
       status: bookingStatus,
     });
 
+    await Notification.create({
+      user: booking.user,
+      title: 'Booking Created',
+      body: `Your booking for ${carDoc.brand} ${carDoc.name} has been created with status: ${bookingStatus}.`,
+      type: 'booking',
+      relatedId: booking._id.toString()
+    }).catch(() => {});
+
     res.status(201).json(booking);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -142,6 +151,15 @@ exports.cancelBooking = async (req, res) => {
 
     booking.status = 'Cancelled';
     await booking.save();
+
+    await Notification.create({
+      user: booking.user,
+      title: 'Booking Cancelled',
+      body: 'Your booking has been cancelled successfully.',
+      type: 'booking',
+      relatedId: booking._id.toString()
+    }).catch(() => {});
+
     res.json(booking);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -182,6 +200,15 @@ exports.extendBooking = async (req, res) => {
     booking.returnDate = requestedEnd;
     booking.totalPrice = Number(booking.totalPrice) + Number(extraPrice);
     await booking.save();
+
+    await Notification.create({
+      user: booking.user,
+      title: 'Booking Extended',
+      body: `Your booking has been extended to ${newReturnDate}.`,
+      type: 'booking',
+      relatedId: booking._id.toString()
+    }).catch(() => {});
+
     res.json(booking);
   } catch (error) {
     console.error('Error in extendBooking:', error);
@@ -220,6 +247,15 @@ exports.getAllBookings = async (req, res) => {
 exports.updateBooking = async (req, res) => {
   try {
     const updated = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (updated && req.body.status) {
+      await Notification.create({
+        user: updated.user,
+        title: 'Booking Status Updated',
+        body: `Your booking status has been updated to: ${updated.status}.`,
+        type: 'booking',
+        relatedId: updated._id.toString()
+      }).catch(() => {});
+    }
     res.json(updated);
   } catch (error) {
     res.status(400).json({ error: error.message });
