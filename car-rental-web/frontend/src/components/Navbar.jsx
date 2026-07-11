@@ -24,6 +24,9 @@ const Navbar = () => {
     if (user.role === 'admin') {
       links.push({ name: 'Dashboard', path: '/admin' });
     }
+    if (user.role === 'customer') {
+      links.push({ name: 'Become a Partner', path: '/register-seller' });
+    }
   }
 
   return (

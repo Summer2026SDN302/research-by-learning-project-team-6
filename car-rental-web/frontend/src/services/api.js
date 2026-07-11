@@ -47,3 +47,9 @@ export const getAvailabilityByCarAPI = (carId) => API.get(`/bookings/availabilit
 export const getAvailabilityCalendarAPI = () => API.get('/bookings/admin/availability');
 export const getPricingSurgesAPI = () => API.get('/analytics/pricing-surges');
 export const chatAIAPI = (data) => API.post('/ai/chat', data);
+
+// Seller
+export const submitSellerRequestAPI = (data) => API.post('/seller/request', data);
+export const getMySellerRequestAPI = () => API.get('/seller/request/me');
+export const getAllSellerRequestsAPI = () => API.get('/seller/requests');
+export const reviewSellerRequestAPI = (id, data) => API.patch(`/seller/requests/${id}`, data);
