@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { CheckCircle, Calendar, MapPin, CreditCard, ChevronLeft, Download, Hash, Phone, Mail, User, Clock, ShieldCheck } from 'lucide-react';
-import { getBookingByIdAPI } from '../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, Calendar, MapPin, CreditCard, ChevronLeft, Download, Hash, Phone, Mail, User, Clock, ShieldCheck, CalendarPlus, XCircle, Trash2, Star } from 'lucide-react';
+import { getBookingByIdAPI, cancelBookingAPI, extendBookingAPI, deleteBookingAPI, createReviewAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const BookingDetail = () => {
   const { id } = useParams();
@@ -12,23 +13,103 @@ const BookingDetail = () => {
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [newReturnDate, setNewReturnDate] = useState('');
+  const [extending, setExtending] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const backPath = user?.role === 'admin' ? '/admin' : '/my-bookings';
 
+  const fetchBookingDetail = async () => {
+    try {
+      console.log('Fetching booking:', id, 'user:', user?._id);
+      const { data } = await getBookingByIdAPI(id, user?._id);
+      console.log('Booking data received:', data);
+      setBooking(data);
+    } catch (err) {
+      console.error('API Error:', err.response?.data || err.message);
+      setError(err.response?.data?.message || err.response?.data?.error || 'Could not load booking details.');
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        console.log('Fetching booking:', id);
-        const { data } = await getBookingByIdAPI(id);
-        console.log('Booking data received:', data);
-        setBooking(data);
-      } catch (err) {
-        console.error('API Error:', err.response?.data || err.message);
-        setError(err.response?.data?.message || err.response?.data?.error || 'Could not load booking details.');
-      }
-      setLoading(false);
-    })();
-  }, [id]);
+    if (user) {
+      fetchBookingDetail();
+    }
+  }, [id, user]);
+
+  const handleCancel = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đặt xe này không?")) return;
+    try {
+      await cancelBookingAPI(id, user?._id);
+      toast.success("Hủy đặt xe thành công!");
+      fetchBookingDetail();
+    } catch (err) {
+      toast.error(err.message || "Không thể hủy đặt xe.");
+    }
+  };
+
+  const handleExtend = async (e) => {
+    e.preventDefault();
+    if (!newReturnDate) {
+      toast.error("Vui lòng chọn ngày trả xe mới.");
+      return;
+    }
+    if (new Date(newReturnDate) <= new Date(booking.returnDate)) {
+      toast.error("Ngày trả xe mới phải sau ngày trả xe hiện tại.");
+      return;
+    }
+    setExtending(true);
+    try {
+      await extendBookingAPI(id, newReturnDate, user?._id);
+      toast.success("Đã gia hạn đặt xe thành công!");
+      setShowExtendModal(false);
+      fetchBookingDetail();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || "Không thể gia hạn đặt xe.");
+    } finally {
+      setExtending(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Bạn có chắc muốn xóa lịch sử đặt xe này? Hành động này không thể hoàn tác.")) return;
+    try {
+      await deleteBookingAPI(id, user?._id);
+      toast.success("Đã xóa lịch sử đặt xe!");
+      navigate(backPath);
+    } catch (err) {
+      toast.error(err.message || "Không thể xóa.");
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewComment.trim()) {
+      toast.error("Please enter your review comment.");
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      await createReviewAPI({
+        car: booking.car._id,
+        booking: booking._id,
+        rating: reviewRating,
+        comment: reviewComment.trim()
+      });
+      toast.success("Thank you for your review!");
+      setShowReviewModal(false);
+      setReviewComment('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || "Could not submit review.");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -87,9 +168,56 @@ const BookingDetail = () => {
               </div>
             </div>
             
-            <button onClick={() => window.print()} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg">
-              <Download className="w-4 h-4 text-yellow-400" /> Print Ticket
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {(booking.status === 'Pending' || booking.status === 'Approved') && (
+                <button 
+                  onClick={handleCancel} 
+                  className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/20 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg"
+                >
+                  <XCircle className="w-4 h-4 text-red-400 hover:text-white" /> Hủy Đặt Xe
+                </button>
+              )}
+              
+              {/* Nút Gia Hạn: hiện với cả Pending và Approved */}
+              {(booking.status === 'Pending' || booking.status === 'Approved') && (
+                <button 
+                  onClick={() => {
+                    setNewReturnDate('');
+                    setShowExtendModal(true);
+                  }} 
+                  className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg"
+                >
+                  <CalendarPlus className="w-4 h-4" /> Gia Hạn
+                </button>
+              )}
+
+              {booking.status === 'Completed' && (
+                <button 
+                  onClick={() => {
+                    setReviewRating(5);
+                    setReviewComment('');
+                    setShowReviewModal(true);
+                  }}
+                  className="flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg"
+                >
+                  <Star className="w-4 h-4" fill="currentColor" /> Write Review
+                </button>
+              )}
+
+              {/* Nút Xóa Lịch Sử: chỉ hiện với Completed và Cancelled */}
+              {(booking.status === 'Completed' || booking.status === 'Cancelled') && (
+                <button 
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 bg-white/5 hover:bg-red-600 text-gray-400 hover:text-white border border-white/10 hover:border-red-600 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg"
+                >
+                  <Trash2 className="w-4 h-4" /> Xóa Lịch Sử
+                </button>
+              )}
+
+              <button onClick={() => window.print()} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition shadow-lg">
+                <Download className="w-4 h-4 text-yellow-400" /> Print Ticket
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10">
@@ -196,6 +324,190 @@ const BookingDetail = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Modal Gia Hạn */}
+      <AnimatePresence>
+        {showExtendModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowExtendModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            />
+            
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-md bg-slate-900/90 border border-white/10 rounded-3xl p-8 shadow-2xl z-10 backdrop-blur-xl"
+            >
+              <h3 className="text-2xl font-black mb-6 uppercase tracking-tight text-white flex items-center gap-2">
+                <CalendarPlus className="w-6 h-6 text-yellow-400" /> Gia Hạn Thuê Xe
+              </h3>
+              
+              <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/5 space-y-2 text-sm text-gray-300">
+                <div className="flex justify-between">
+                  <span>Ngày trả hiện tại:</span>
+                  <span className="font-bold text-white">
+                    {new Date(booking.returnDate).toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Đơn giá xe:</span>
+                  <span className="font-bold text-yellow-400">
+                    {booking.car?.pricePerDay?.toLocaleString()} VNĐ/ngày
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleExtend} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider text-gray-400 font-bold block">
+                    Chọn Ngày Trả Mới *
+                  </label>
+                  <input 
+                    type="date"
+                    value={newReturnDate}
+                    min={new Date(new Date(booking.returnDate).getTime() + 86400000).toISOString().split('T')[0]}
+                    onChange={(e) => setNewReturnDate(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-yellow-400/50 transition font-medium"
+                    required
+                  />
+                </div>
+
+                {newReturnDate && new Date(newReturnDate) > new Date(booking.returnDate) && (() => {
+                  const diffDays = Math.ceil((new Date(newReturnDate) - new Date(booking.returnDate)) / (1000 * 60 * 60 * 24));
+                  const extraPrice = diffDays * (booking.car?.pricePerDay || 0);
+                  return (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 rounded-2xl bg-yellow-400/10 border border-yellow-400/20 text-sm space-y-2"
+                    >
+                      <div className="flex justify-between text-yellow-200">
+                        <span>Thời gian gia hạn:</span>
+                        <span className="font-bold">+{diffDays} ngày</span>
+                      </div>
+                      <div className="flex justify-between text-yellow-400 font-bold text-base border-t border-yellow-400/10 pt-2">
+                        <span>Chi phí phát sinh:</span>
+                        <span>+{extraPrice.toLocaleString()} VNĐ</span>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+
+                <div className="flex gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => setShowExtendModal(false)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-2xl transition text-sm uppercase tracking-wider"
+                  >
+                    Hủy
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={extending}
+                    className="flex-1 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-black font-bold py-3.5 rounded-2xl shadow-lg transition text-sm uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {extending ? (
+                      <span className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      "Xác Nhận"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showReviewModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowReviewModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            />
+            
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-md bg-[#111827] border border-white/10 rounded-3xl p-6 shadow-2xl z-10"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Rate Your Trip</h3>
+                <button 
+                  onClick={() => setShowReviewModal(false)} 
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleReviewSubmit} className="space-y-6">
+                <div className="text-center">
+                  <p className="text-sm text-gray-400 mb-2">Your rating for {booking.car?.brand} {booking.car?.model}</p>
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setReviewRating(star)}
+                        className="text-yellow-400 hover:scale-110 transition p-1"
+                      >
+                        <Star 
+                          size={32} 
+                          fill={star <= reviewRating ? "currentColor" : "none"} 
+                          stroke="currentColor" 
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs text-gray-400 font-bold uppercase tracking-wider">Review Comment *</label>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Share your rental experience (cleanliness, smoothness, timing...)"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-yellow-400/50 transition font-medium h-32 resize-none text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => setShowReviewModal(false)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-2xl transition text-sm uppercase tracking-wider"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={reviewSubmitting}
+                    className="flex-1 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-black font-bold py-3.5 rounded-2xl shadow-lg transition text-sm uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {reviewSubmitting ? (
+                      <span className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      "Submit Review"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

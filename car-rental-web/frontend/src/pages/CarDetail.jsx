@@ -4,7 +4,7 @@ import 'react-calendar/dist/Calendar.css';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Users, Fuel, Settings, MapPin, ArrowLeft, X, Maximize2, Navigation, ShieldCheck, ShieldAlert, CarTaxiFront, Baby, Calendar as CalendarIcon } from 'lucide-react';
-import { getCarByIdAPI, getAvailabilityByCarAPI, getCarPricingAPI } from '../services/api';
+import { getCarByIdAPI, getAvailabilityByCarAPI, getCarPricingAPI, getReviewsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -33,13 +33,20 @@ const CarDetail = () => {
   const [bookedDates, setBookedDates] = useState([]);
   const [pricing, setPricing] = useState(null);
   const [pricingLoading, setPricingLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
+
+  // Hàm helper chuyển đổi ngày sang Chuỗi Local "YYYY-MM-DD" không lo lệch múi giờ UTC
+  const toLocalDate = (d) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const [{ data }, availabilityRes] = await Promise.all([
+        const [{ data }, availabilityRes, reviewsRes] = await Promise.all([
           getCarByIdAPI(id),
-          getAvailabilityByCarAPI(id)
+          getAvailabilityByCarAPI(id),
+          getReviewsAPI({ car: id }).catch(() => ({ data: [] }))
         ]);
         setCar(data);
         setBooking((prev) => ({
@@ -49,12 +56,16 @@ const CarDetail = () => {
           dropoffLocationCoords: data.pickupLocationCoords || prev.dropoffLocationCoords
         }));
         setBookedDates(availabilityRes.data || []);
+        setReviews(reviewsRes.data || []);
       } catch (err) { console.error(err); }
       setLoading(false);
     })();
   }, [id]);
 
+  // SỬA LỖI: Request aborted bằng cơ chế cleanup isActive
   useEffect(() => {
+    let isActive = true;
+
     const loadPricing = async () => {
       if (!booking.pickupDate || !booking.returnDate) return;
       setPricingLoading(true);
@@ -63,21 +74,27 @@ const CarDetail = () => {
           startDate: booking.pickupDate,
           endDate: booking.returnDate
         });
-        setPricing(data);
+        if (isActive) setPricing(data);
       } catch (error) {
-        console.error(error);
+        if (isActive) console.error(error);
       } finally {
-        setPricingLoading(false);
+        if (isActive) setPricingLoading(false);
       }
     };
 
     loadPricing();
+
+    return () => {
+      isActive = false;
+    };
   }, [booking.pickupDate, booking.returnDate, id]);
 
+  // SỬA LỖI: Chuẩn hóa mảng ảnh để tránh trùng lặp tuyệt đối
   const images = useMemo(() => {
     if (!car) return [];
     const gallery = Array.isArray(car.galleryImages) ? car.galleryImages : [];
-    return [car.imageUrl, ...gallery].filter(Boolean);
+    const allImages = [car.imageUrl, ...gallery].filter(Boolean).map(img => img.trim());
+    return [...new Set(allImages)];
   }, [car]);
 
   const addOnOptions = [
@@ -99,28 +116,54 @@ const CarDetail = () => {
   const basePerDay = pricing?.basePrice || (car ? car.pricePerDay : 0);
   const totalPrice = car ? days * dynamicPerDay + addOnsTotal : 0;
 
-  const bookedRanges = useMemo(() => bookedDates.map((bookingItem) => ({
-    start: new Date(bookingItem.pickupDate),
-    end: new Date(bookingItem.returnDate)
-  })), [bookedDates]);
+  // Chuẩn hóa bookedRanges về 00:00:00 local để so sánh lịch chính xác
+  const bookedRanges = useMemo(() => bookedDates.map((bookingItem) => {
+    const start = new Date(bookingItem.pickupDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(bookingItem.returnDate);
+    end.setHours(0, 0, 0, 0);
+    return { start, end };
+  }), [bookedDates]);
 
   const isDateBooked = (date) => {
-    return bookedRanges.some((range) => date >= range.start && date <= range.end);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return bookedRanges.some((range) => checkDate >= range.start && checkDate <= range.end);
   };
 
+  // SỬA LỖI: Logic xử lý click lịch (Chờ chọn đủ 2 ngày, áp dụng toLocalDate)
   const handleCalendarChange = (range) => {
-    if (!Array.isArray(range)) return;
-    const [start, end] = range;
-    if (!start || !end) return;
-    if (isDateBooked(start) || isDateBooked(end)) {
-      toast.error('Selected dates include unavailable days');
+    if (!range) {
+      setBooking(prev => ({ ...prev, pickupDate: '', returnDate: '' }));
       return;
     }
-    setBooking((prev) => ({
-      ...prev,
-      pickupDate: start.toISOString().split('T')[0],
-      returnDate: end.toISOString().split('T')[0]
-    }));
+
+    const [start, end] = Array.isArray(range) ? range : [range, null];
+
+    if (start && !end) {
+      if (isDateBooked(start)) {
+        toast.error('Selected date is unavailable');
+        return;
+      }
+      setBooking((prev) => ({
+        ...prev,
+        pickupDate: toLocalDate(start),
+        returnDate: ''
+      }));
+      return;
+    }
+
+    if (start && end) {
+      if (isDateBooked(start) || isDateBooked(end)) {
+        toast.error('Selected dates include unavailable days');
+        return;
+      }
+      setBooking((prev) => ({
+        ...prev,
+        pickupDate: toLocalDate(start),
+        returnDate: toLocalDate(end)
+      }));
+    }
   };
 
   useEffect(() => {
@@ -161,7 +204,13 @@ const CarDetail = () => {
 
   const handleBook = async () => {
     if (!user) { toast.error('Please login first'); navigate('/login'); return; }
-    if (!booking.pickupDate || !booking.returnDate || !booking.pickupLocation) { toast.error('Please fill all fields'); return; }
+    
+    // SỬA TẠI ĐÂY: Bỏ điều kiện !booking.pickupLocation để tránh bị kẹt lỗi "Please fill all fields"
+    if (!booking.pickupDate || !booking.returnDate) { 
+      toast.error('Please fill all fields'); 
+      return; 
+    }
+    
     if (isDateBooked(new Date(booking.pickupDate)) || isDateBooked(new Date(booking.returnDate))) {
       toast.error('Selected dates are not available');
       return;
@@ -171,6 +220,7 @@ const CarDetail = () => {
       carId: id,
       booking: {
         ...booking,
+        pickupLocation: booking.pickupLocation || car.location || 'Default Location', // Gán giá trị dự phòng nếu bị rỗng
         totalPrice
       },
       carSnapshot: {
@@ -243,7 +293,7 @@ const CarDetail = () => {
             <div className="mt-5 grid grid-cols-4 gap-3">
               {images.slice(0, 4).map((img, index) => (
                 <button
-                  key={img}
+                  key={`car-thumb-${index}`} // SỬA LỖI: Đổi key tránh trùng lặp
                   onClick={() => setActiveImage(index)}
                   className={`relative rounded-2xl overflow-hidden border transition ${index === activeImage ? 'border-yellow-400 shadow-lg shadow-yellow-500/20' : 'border-white/10 hover:border-white/30'}`}
                 >
@@ -308,19 +358,24 @@ const CarDetail = () => {
                 )}
                 {activeTab === 'Reviews' && (
                   <motion.div key="reviews" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-                    {[
-                      { name: 'Ava L.', rating: 5, text: 'Flawless experience. The car felt brand new and the pickup was effortless.' },
-                      { name: 'Noah R.', rating: 5, text: 'Luxury service, seamless booking, and an incredible ride.' },
-                      { name: 'Mia K.', rating: 4.8, text: 'Premium feel throughout. Would book again for special trips.' },
-                    ].map((review) => (
-                      <div key={review.name} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold">{review.name}</span>
-                          <span className="flex items-center gap-1 text-yellow-400 text-sm"><Star className="w-4 h-4" fill="currentColor" /> {review.rating}</span>
+                    {reviews.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-6">No reviews yet for this car.</p>
+                    ) : (
+                      reviews.map((review, idx) => (
+                        <div key={review._id || idx} className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold">{review.user?.name || 'Customer'}</span>
+                            <span className="flex items-center gap-1 text-yellow-400 text-sm">
+                              <Star className="w-4 h-4" fill="currentColor" /> {review.rating}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-400">{review.comment}</p>
+                          <span className="text-[10px] text-gray-500 mt-2 block">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </span>
                         </div>
-                        <p className="text-sm text-gray-400">{review.text}</p>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -354,7 +409,15 @@ const CarDetail = () => {
                   <ReactCalendar
                     selectRange
                     minDate={new Date()}
-                    value={booking.pickupDate && booking.returnDate ? [new Date(booking.pickupDate), new Date(booking.returnDate)] : null}
+                    // SỬA LỖI: Giao diện hiển thị chuẩn khi chọn 1 ngày đơn lẻ
+                    value={
+                      booking.pickupDate
+                        ? [
+                            new Date(booking.pickupDate),
+                            booking.returnDate ? new Date(booking.returnDate) : new Date(booking.pickupDate)
+                          ]
+                        : null
+                    }
                     onChange={handleCalendarChange}
                     tileDisabled={({ date }) => isDateBooked(date)}
                     className="lux-calendar"
@@ -409,7 +472,7 @@ const CarDetail = () => {
                         {option.id === 'child_seat' && <Baby className="w-4 h-4" />}
                         {option.label}
                       </span>
-                      <span className="text-xs text-gray-500">+${option.price}/day</span>
+                      <span className="text-xs text-gray-500">+{option.price}/day</span>
                     </button>
                   ))}
                 </div>

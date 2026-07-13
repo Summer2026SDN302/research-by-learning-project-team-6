@@ -15,8 +15,37 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { getStatsAPI, getUsersAPI, deleteUserAPI, toggleUserStatusAPI, getCarsAPI, createCarAPI, deleteCarAPI, getAllBookingsAPI, updateBookingStatusAPI, confirmPaymentAPI, getAvailabilityCalendarAPI, getPricingSurgesAPI } from '../services/api';
+import {
+  getStatsAPI,
+  getTopCarsAPI,
+  getUsersAPI,
+  deleteUserAPI,
+  toggleUserStatusAPI,
+  getCarsAPI,
+  createCarAPI,
+  deleteCarAPI,
+  getAllBookingsAPI,
+  updateBookingStatusAPI,
+  confirmPaymentAPI,
+  getAvailabilityCalendarAPI,
+  getPricingSurgesAPI,
+  getAdminVouchersAPI,
+  createAdminVoucherAPI,
+  updateAdminVoucherAPI,
+  deleteAdminVoucherAPI,
+  getAdminCommissionSummaryAPI,
+  getPendingSellerRequestsAPI,
+  reviewSellerRequestAPI,
+  getAdminAllSurgesAPI,
+  getAdminActiveSurgesAPI,
+  createAdminSurgeAPI,
+  updateAdminSurgeAPI,
+  deleteAdminSurgeAPI,
+  getCarsTimelineAPI,
+  getCalendarOccupancyAPI
+} from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend, Filler);
 
@@ -28,7 +57,15 @@ const tabs = [
 ];
 
 const AdminDashboard = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
   const [tab, setTab] = useState('dashboard');
   const [stats, setStats] = useState({});
   const [users, setUsers] = useState([]);
@@ -38,28 +75,90 @@ const AdminDashboard = () => {
   const [newCar, setNewCar] = useState({ name:'', brand:'', pricePerDay:'', type:'Sedan', description:'', imageUrl:'', seats:5, transmission:'Auto', fuelType:'Gasoline', rating:4.5 });
   const [calendarBookings, setCalendarBookings] = useState([]);
   const [pricingSurges, setPricingSurges] = useState([]);
+  const [commissionSummary, setCommissionSummary] = useState([]);
+  const [sellerRequests, setSellerRequests] = useState([]);
+  const [reviewingRequest, setReviewingRequest] = useState(null);
+  const [reviewAction, setReviewAction] = useState('APPROVED');
+  const [declineReason, setDeclineReason] = useState('');
+  const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Sync tab loading
+  useEffect(() => {
+    if (tab === 'dashboard') {
+      loadData();
+    }
+  }, [tab]);
+
   const loadData = async () => {
+    const [statsRes, usersRes, carsRes, bookingsRes, topCarsRes, availabilityRes, surgeRes, commissionRes] = await Promise.allSettled([
+      getStatsAPI(),
+      getUsersAPI(),
+      getCarsAPI(),
+      getAllBookingsAPI(),
+      getTopCarsAPI(),
+      getAvailabilityCalendarAPI(),
+      getPricingSurgesAPI(),
+      getAdminCommissionSummaryAPI()
+    ]);
+
+    if (statsRes.status === 'fulfilled') {
+      const statsData = { ...statsRes.value.data };
+      if (topCarsRes.status === 'fulfilled') {
+        statsData.topCars = topCarsRes.value.data.map((item) => ({
+          name: item.carDetails?.name || 'Unknown',
+          brand: item.carDetails?.brand || '',
+          model: item.carDetails?.model || '',
+          count: item.bookingCount || 0,
+          imageUrl: item.carDetails?.imageUrl || ''
+        }));
+      }
+      setStats(statsData);
+    } else {
+      console.error('Failed to load stats:', statsRes.reason);
+    }
+
+    if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data);
+    else console.error('Failed to load users:', usersRes.reason);
+
+    if (carsRes.status === 'fulfilled') setCars(carsRes.value.data);
+    else console.error('Failed to load cars:', carsRes.reason);
+
+    if (bookingsRes.status === 'fulfilled') setBookings(bookingsRes.value.data);
+    else console.error('Failed to load bookings:', bookingsRes.reason);
+
+    if (availabilityRes.status === 'fulfilled') setCalendarBookings(availabilityRes.value.data || []);
+    else console.error('Failed to load availability:', availabilityRes.reason);
+
+    if (surgeRes.status === 'fulfilled') {
+      setPricingSurges(surgeRes.value.data.map((item) => ({
+        carId: item._id,
+        brand: item.brand || '',
+        model: item.model || item.carName || '',
+        image: item.imageUrl || '',
+        basePrice: item.currentPrice || 0,
+        dynamicPrice: Math.round((item.currentPrice || 0) * (item.bookingCount > 8 ? 1.25 : item.bookingCount > 4 ? 1.15 : item.bookingCount > 2 ? 1.10 : 1)),
+        surgePercentage: item.bookingCount > 8 ? 25 : item.bookingCount > 4 ? 15 : item.bookingCount > 2 ? 10 : 0
+      })));
+    } else {
+      console.error('Failed to load pricing surges:', surgeRes.reason);
+    }
+
+    if (commissionRes.status === 'fulfilled') {
+      setCommissionSummary(commissionRes.value.data || []);
+    } else {
+      console.error('Failed to load commission summary:', commissionRes.reason);
+    }
+
     try {
-      const [statsRes, usersRes, carsRes, bookingsRes, availabilityRes, surgeRes] = await Promise.all([
-        getStatsAPI(),
-        getUsersAPI(),
-        getCarsAPI(),
-        getAllBookingsAPI(),
-        getAvailabilityCalendarAPI(),
-        getPricingSurgesAPI()
-      ]);
-      setStats(statsRes.data);
-      setUsers(usersRes.data);
-      setCars(carsRes.data);
-      setBookings(bookingsRes.data);
-      setCalendarBookings(availabilityRes.data || []);
-      setPricingSurges(surgeRes.data || []);
-    } catch (err) { console.error(err); }
+      const pendingRequestsRes = await getPendingSellerRequestsAPI();
+      setSellerRequests(pendingRequestsRes.data || []);
+    } catch (error) {
+      console.error('Failed to load seller requests:', error);
+    }
   };
 
   const handleDeleteUser = async (id) => { await deleteUserAPI(id); toast.success('User deleted'); loadData(); };
@@ -83,6 +182,38 @@ const AdminDashboard = () => {
       toast.success('Car added!'); setShowAddCar(false); loadData();
       setNewCar({ name:'', brand:'', pricePerDay:'', type:'Sedan', description:'', imageUrl:'', seats:5, transmission:'Auto', fuelType:'Gasoline', rating:4.5 });
     } catch (err) { toast.error('Failed to add car'); }
+  };
+
+  const openReviewModal = (request, action) => {
+    setReviewingRequest(request);
+    setReviewAction(action);
+    setDeclineReason('');
+  };
+
+  const handleReviewSellerRequest = async (e) => {
+    e.preventDefault();
+    if (!reviewingRequest) return;
+
+    if (reviewAction === 'DECLINED' && !declineReason.trim()) {
+      toast.error('Please provide a decline reason');
+      return;
+    }
+
+    setIsReviewSubmitting(true);
+    try {
+      await reviewSellerRequestAPI(reviewingRequest._id, {
+        status: reviewAction,
+        reason: declineReason.trim(),
+      });
+      toast.success(reviewAction === 'APPROVED' ? 'Seller request approved' : 'Seller request declined');
+      setReviewingRequest(null);
+      setDeclineReason('');
+      loadData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to review seller request');
+    } finally {
+      setIsReviewSubmitting(false);
+    }
   };
 
   const statCards = [
@@ -129,6 +260,10 @@ const AdminDashboard = () => {
     return entries.slice(0, 6);
   }, [stats.bookingsByLocation]);
 
+  const totalAdminCommission = useMemo(() => {
+    return commissionSummary.reduce((sum, item) => sum + Number(item.adminCommission || 0), 0);
+  }, [commissionSummary]);
+
   const locationChartData = {
     labels: bookingsByLocation.map(([location]) => location),
     datasets: [
@@ -168,6 +303,17 @@ const AdminDashboard = () => {
     plugins: { legend: { display: true, labels: { color: '#e2e8f0' } } }
   };
 
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0c10] text-white">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm tracking-wider uppercase text-yellow-200">Verifying Admin Access...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-24 pb-16 min-h-screen">
       <div className="max-w-7xl mx-auto px-6">
@@ -198,6 +344,46 @@ const AdminDashboard = () => {
                     <p className="text-3xl font-black mt-1">{s.value}</p>
                   </motion.div>
                 ))}
+              </div>
+
+              <div className="bg-white/10 border border-white/10 rounded-3xl p-6 backdrop-blur-xl shadow-xl shadow-black/20">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-sm text-gray-400">Admin Commission</p>
+                    <h3 className="text-2xl font-bold mt-1">10% Revenue Share</h3>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-yellow-400">{totalAdminCommission.toLocaleString()} VNĐ</p>
+                    <p className="text-xs text-gray-500">Calculated from paid bookings</p>
+                  </div>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-white/5 text-left text-gray-400">
+                      <tr>
+                        <th className="px-4 py-3">Month</th>
+                        <th className="px-4 py-3">Vehicle</th>
+                        <th className="px-4 py-3">Gross</th>
+                        <th className="px-4 py-3">Admin Share</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {commissionSummary.slice(0, 6).map((item, index) => (
+                        <tr key={`${item.year}-${item.month}-${index}`} className="border-t border-white/10">
+                          <td className="px-4 py-3 text-gray-300">{item.year}-{String(item.month).padStart(2, '0')}</td>
+                          <td className="px-4 py-3 text-gray-300">{item.carName}</td>
+                          <td className="px-4 py-3 text-gray-300">{Number(item.grossRevenue || 0).toLocaleString()} VNĐ</td>
+                          <td className="px-4 py-3 text-yellow-400 font-semibold">{Number(item.adminCommission || 0).toLocaleString()} VNĐ</td>
+                        </tr>
+                      ))}
+                      {commissionSummary.length === 0 && (
+                        <tr>
+                          <td colSpan="4" className="px-4 py-6 text-center text-gray-500">No paid bookings found for commission calculations.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.65fr] gap-6">
@@ -279,80 +465,54 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                <div className="bg-white/10 border border-white/10 rounded-3xl p-6 backdrop-blur-xl shadow-xl shadow-black/20">
-                  <div className="mb-6">
-                    <p className="text-sm text-gray-400">Highest Demand Cars</p>
-                    <h3 className="text-2xl font-bold mt-1">Pricing Surges</h3>
-                  </div>
-                  <div className="space-y-4">
-                    {pricingSurges.length > 0 ? pricingSurges.map((car) => {
-                      const surgeColor = car.surgePercentage > 20 ? 'text-red-400' : car.surgePercentage > 10 ? 'text-orange-400' : 'text-green-400';
-                      return (
-                        <div key={car.carId} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <img src={car.image} alt={`${car.brand} ${car.model}`} className="w-12 h-12 rounded-xl object-cover" />
-                            <div>
-                              <p className="text-sm font-semibold">{car.brand} {car.model}</p>
-                            <p className="text-xs text-gray-500">Base {(car.basePrice || 0).toLocaleString()} VNĐ → {(car.dynamicPrice || 0).toLocaleString()} VNĐ</p>
-                          </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-sm font-semibold ${surgeColor}`}>{car.surgePercentage || 0}%</p>
-                            {car.surgePercentage > 20 && (
-                              <span className="text-xs text-red-400">🔥 Hot demand</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    }) : (
-                      <p className="text-sm text-gray-500">No surge data yet.</p>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <div className="bg-white/10 border border-white/10 rounded-3xl p-6 backdrop-blur-xl shadow-xl shadow-black/20">
-                <div className="mb-6">
-                  <p className="text-sm text-gray-400">Recent Bookings</p>
-                  <h3 className="text-2xl font-bold mt-1">Latest Activity</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-sm text-gray-400">Seller Requests</p>
+                    <h3 className="text-2xl font-bold mt-1">Pending approvals</h3>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-yellow-400/10 text-yellow-400 text-xs font-semibold">
+                    {sellerRequests.length} pending
+                  </span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-gray-400 border-b border-white/10">
-                        <th className="py-3">Dates</th>
-                        <th className="py-3">Status</th>
-                        <th className="py-3">Action</th>
+                        <th className="py-3">User</th>
+                        <th className="py-3">Email</th>
+                        <th className="py-3">Requested At</th>
+                        <th className="py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {bookings.slice(0, 5).map((booking) => (
-                        <tr key={booking._id} className="border-b border-white/5">
-                          <td className="py-3">
-                            <div>
-                               <p className="font-medium">{booking.customerName || booking.user?.name || 'Unknown'}</p>
-                               <p className="text-[10px] text-gray-600">{booking.customerEmail || booking.user?.email}</p>
-                            </div>
-                          </td>
-                          <td className="py-3 text-gray-400">{booking.car?.name || 'Unknown'}</td>
-                          <td className="py-3 text-gray-400 text-xs">
-                            {new Date(booking.pickupDate).toLocaleDateString()} - {new Date(booking.returnDate).toLocaleDateString()}
-                          </td>
-                          <td className="py-3">
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-medium ${booking.status === 'Pending' ? 'bg-yellow-400/10 text-yellow-400' : booking.status === 'Approved' ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>
-                              {booking.status}
-                            </span>
-                          </td>
-                          <td className="py-3 text-right pr-4">
-                             <button 
-                               onClick={() => navigate(`/bookings/${booking._id}`)}
-                               className="p-1 px-2 bg-white/10 hover:bg-yellow-400 hover:text-black rounded text-[10px] uppercase font-bold transition flex items-center gap-1"
-                             >
-                                <Eye className="w-3 h-3" /> Detail
-                             </button>
+                      {sellerRequests.length > 0 ? sellerRequests.map((request) => (
+                        <tr key={request._id} className="border-b border-white/5">
+                          <td className="py-3 font-medium">{request.user?.name || 'Unknown'}</td>
+                          <td className="py-3 text-gray-400">{request.user?.email || '—'}</td>
+                          <td className="py-3 text-gray-400">{new Date(request.created_at).toLocaleString()}</td>
+                          <td className="py-3 text-right pr-4 space-x-2">
+                            <button
+                              onClick={() => openReviewModal(request, 'APPROVED')}
+                              className="px-3 py-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 text-xs font-semibold"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => openReviewModal(request, 'DECLINED')}
+                              className="px-3 py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-semibold"
+                            >
+                              Decline
+                            </button>
                           </td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr>
+                          <td colSpan="4" className="py-6 text-center text-gray-500">No pending seller requests.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -392,29 +552,14 @@ const AdminDashboard = () => {
           {/* CARS TAB */}
           {tab === 'cars' && (
             <motion.div key="cars" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <button onClick={() => setShowAddCar(!showAddCar)} className="mb-6 bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-6 py-2.5 rounded-full font-bold text-sm hover:shadow-lg hover:shadow-yellow-500/30 transition">
-                + Add New Car
-              </button>
-
-              {showAddCar && (
-                <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} onSubmit={handleAddCar}
-                  className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {['name','brand','pricePerDay','type','description','imageUrl'].map(field => (
-                    <input key={field} placeholder={field.charAt(0).toUpperCase() + field.slice(1)} value={newCar[field]} onChange={(e) => setNewCar({...newCar, [field]: e.target.value})} required
-                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:ring-2 focus:ring-yellow-400/50 focus:outline-none" />
-                  ))}
-                  <button type="submit" className="md:col-span-3 bg-yellow-400 text-black py-3 rounded-xl font-bold">Add Car</button>
-                </motion.form>
-              )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cars.map(c => (
-                  <div key={c._id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden group">
+                  <div key={c._id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                     <img src={c.imageUrl} alt={c.name} className="w-full h-40 object-cover" />
                     <div className="p-4">
                       <h3 className="font-bold">{c.name}</h3>
-                      <p className="text-sm text-gray-500">{c.brand} · ${c.pricePerDay}/day</p>
-                      <button onClick={() => handleDeleteCar(c._id)} className="mt-3 flex items-center gap-1 text-red-400 text-sm hover:text-red-300"><Trash2 className="w-4 h-4" /> Delete</button>
+                      <p className="text-sm text-gray-500">{c.brand} · {Number(c.pricePerDay || 0).toLocaleString()} VNĐ/day</p>
+                      <p className="text-xs text-gray-400 mt-2">View-only access for admin</p>
                     </div>
                   </div>
                 ))}
@@ -443,13 +588,6 @@ const AdminDashboard = () => {
                       >
                          <Eye className="w-4 h-4" /> View Details
                       </button>
-                      {b.status === 'Pending' && (
-                        <>
-                          <button onClick={() => handleConfirmPayment(b._id)} className="p-2 px-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-xs font-bold text-blue-400 transition"><DollarSign className="w-4 h-4" /> Confirm Payment</button>
-                          <button onClick={() => handleBookingStatus(b._id, 'Approved')} className="p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20"><Check className="w-4 h-4 text-green-400" /></button>
-                          <button onClick={() => handleBookingStatus(b._id, 'Cancelled')} className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20"><X className="w-4 h-4 text-red-400" /></button>
-                        </>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -457,8 +595,73 @@ const AdminDashboard = () => {
               </div>
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
+
+      {reviewingRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#111827] p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-white">
+              {reviewAction === 'APPROVED' ? 'Approve seller request?' : 'Decline seller request?'}
+            </h3>
+            <p className="mt-2 text-sm text-gray-400">
+              {reviewAction === 'APPROVED'
+                ? 'This action will upgrade the user role to seller.'
+                : 'Please provide a reason before submitting the decline.'}
+            </p>
+
+            {reviewAction === 'DECLINED' && (
+              <form onSubmit={handleReviewSellerRequest} className="mt-4 space-y-3">
+                <textarea
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  rows={4}
+                  required
+                  placeholder="Enter rejection reason"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReviewingRequest(null)}
+                    className="rounded-xl bg-white/10 px-4 py-2 text-sm text-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isReviewSubmitting}
+                    className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {isReviewSubmitting ? 'Submitting...' : 'Submit Decline'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {reviewAction === 'APPROVED' && (
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReviewingRequest(null)}
+                  className="rounded-xl bg-white/10 px-4 py-2 text-sm text-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReviewSellerRequest}
+                  disabled={isReviewSubmitting}
+                  className="rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {isReviewSubmitting ? 'Submitting...' : 'Confirm Approve'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

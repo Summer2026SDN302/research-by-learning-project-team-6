@@ -35,21 +35,95 @@ export const createCarAPI = (data) => API.post('/cars', data);
 export const updateCarAPI = (id, data) => API.put(`/cars/${id}`, data);
 export const deleteCarAPI = (id) => API.delete(`/cars/${id}`);
 
-// Bookings
-export const createBookingAPI = (data) => API.post('/bookings', data);
-export const getMyBookingsAPI = () => API.get('/bookings/my-bookings');
-export const getBookingByIdAPI = (id) => API.get(`/bookings/${id}`);
-export const getAllBookingsAPI = () => API.get('/bookings/admin');
-export const updateBookingStatusAPI = (id, status) => API.put(`/bookings/admin/${id}`, { status });
-export const deleteBookingAPI = (id) => API.delete(`/bookings/admin/${id}`);
-export const getStatsAPI = () => API.get('/bookings/admin/stats');
-export const getAvailabilityByCarAPI = (carId) => API.get(`/bookings/availability/${carId}`);
-export const getAvailabilityCalendarAPI = () => API.get('/bookings/admin/availability');
-export const getPricingSurgesAPI = () => API.get('/analytics/pricing-surges');
-export const chatAIAPI = (data) => API.post('/ai/chat', data);
+// ==================== Bookings - Customer ====================
 
-// Seller
-export const submitSellerRequestAPI = (data) => API.post('/seller/request', data);
-export const getMySellerRequestAPI = () => API.get('/seller/request/me');
-export const getAllSellerRequestsAPI = () => API.get('/seller/requests');
-export const reviewSellerRequestAPI = (id, data) => API.patch(`/seller/requests/${id}`, data);
+export const createBookingAPI = (data) =>
+  API.post('/bookings/customer', data);
+
+export const getMyBookingsAPI = () =>
+  API.get('/bookings/customer/my-bookings');
+
+export const getBookingByIdAPI = (id) =>
+  API.get(`/bookings/customer/${id}`);
+
+export const getAvailabilityByCarAPI = (carId) =>
+  API.get(`/bookings/customer/availability/${carId}`);
+
+export const extendBookingAPI = (id, data) =>
+  API.post(`/bookings/customer/${id}/extend`, data);
+
+export const cancelBookingAPI = (id) =>
+  API.patch(`/bookings/customer/${id}/cancel`);
+
+
+// ==================== Bookings - Admin ====================
+
+export const getAllBookingsAPI = () =>
+  API.get('/bookings');
+
+export const updateBookingStatusAPI = (id, status) =>
+  API.put(`/bookings/${id}`, { status });
+
+export const deleteBookingAPI = (id) =>
+  API.delete(`/bookings/${id}`);
+
+export const getStatsAPI = () =>
+  API.get('/bookings/admin/stats');
+
+export const getAvailabilityCalendarAPI = () =>
+  API.get('/bookings/admin/availability');
+
+
+// ==================== Others ====================
+
+export const getPricingSurgesAPI = () =>
+  API.get('/analytics/pricing-surge');
+
+export const chatAIAPI = (data) =>
+  API.post('/ai/chat', data);
+
+export const getAIChatHistoryAPI = () =>
+  API.get('/ai/history');
+
+export const getNotificationsAPI = () =>
+  API.get('/notifications');
+
+export const markNotificationReadAPI = (id) =>
+  API.patch(`/notifications/${id}/read`);
+
+export const markAllNotificationsReadAPI = () =>
+  API.patch('/notifications/read-all');
+
+export const createReviewAPI = (data) =>
+  API.post('/reviews', data);
+
+export const getReviewsAPI = (params) =>
+  API.get('/reviews', { params });
+
+export const deleteReviewAPI = (id) =>
+  API.delete(`/reviews/${id}`);
+
+// Admin - Vouchers
+export const getAdminVouchersAPI = () => API.get('/admin/vouchers');
+export const createAdminVoucherAPI = (data) => API.post('/admin/vouchers', data);
+export const updateAdminVoucherAPI = (id, data) => API.put(`/admin/vouchers/${id}`, data);
+export const deleteAdminVoucherAPI = (id) => API.delete(`/admin/vouchers/${id}`);
+
+// Admin - Commissions
+export const getAdminCommissionSummaryAPI = () => API.get('/admin/commissions');
+
+// Admin - Seller Requests
+export const getPendingSellerRequestsAPI = () => API.get('/admin/seller-requests');
+export const reviewSellerRequestAPI = (id, data) => API.put(`/admin/seller-requests/${id}/review`, data);
+
+// Admin - Pricing Surges
+export const getAdminAllSurgesAPI = () => API.get('/admin/pricing-surges/all');
+export const getAdminActiveSurgesAPI = () => API.get('/admin/pricing-surges');
+export const createAdminSurgeAPI = (data) => API.post('/admin/pricing-surges', data);
+export const updateAdminSurgeAPI = (id, data) => API.put(`/admin/pricing-surges/${id}`, data);
+export const deleteAdminSurgeAPI = (id) => API.delete(`/admin/pricing-surges/${id}`);
+
+// Admin - Timeline & Occupancy
+export const getCarsTimelineAPI = (startDate) => API.get('/admin/cars-timeline', { params: { startDate } });
+export const getCalendarOccupancyAPI = (month) => API.get('/admin/calendar-occupancy', { params: { month } });
+export const getTopCarsAPI = () => API.get('/analytics/top-cars');
