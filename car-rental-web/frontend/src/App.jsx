@@ -20,6 +20,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import SecuritySettings from './pages/SecuritySettings';
+import RegisterSeller from './pages/RegisterSeller';
 import FloatingAIButton from './components/FloatingAIButton';
 
 const PageTransition = ({ children }) => (
@@ -53,6 +54,7 @@ const AnimatedRoutes = () => {
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
         <Route path="/verify-email" element={<PageTransition><VerifyEmail /></PageTransition>} />
         <Route path="/security" element={<PageTransition><SecuritySettings /></PageTransition>} />
+        <Route path="/register-seller" element={<PageTransition><RegisterSeller /></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );

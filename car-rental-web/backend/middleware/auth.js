@@ -24,9 +24,10 @@ exports.adminOnly = (req, res, next) => {
   }
 };
 
-exports.isAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
-    return next();
+exports.sellerOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'seller') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as seller' });
   }
-  return res.status(403).json({ message: 'Not authorized as admin' });
 };
