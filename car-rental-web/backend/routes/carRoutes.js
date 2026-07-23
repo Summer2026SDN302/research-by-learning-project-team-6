@@ -78,10 +78,23 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Create car
+// Get seller's own cars
+router.get('/my-cars', async (req, res) => {
+    try {
+        if (!req.user) return res.status(401).json({ error: 'Not authorized' });
+        const cars = await Car.find({ owner: req.user.id });
+        res.json(cars);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create car (auto-assign owner if seller)
 router.post('/', async (req, res) => {
     try {
-        const newCar = new Car(req.body);
+        const carData = { ...req.body };
+        if (req.user) carData.owner = req.user.id;
+        const newCar = new Car(carData);
         const savedCar = await newCar.save();
         res.status(201).json(savedCar);
     } catch (error) {

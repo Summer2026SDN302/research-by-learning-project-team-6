@@ -27,6 +27,10 @@ export const deleteUserAPI = (id) => API.delete(`/auth/users/${id}`);
 export const toggleUserStatusAPI = (id) => API.put(`/auth/users/${id}/status`);
 export const confirmPaymentAPI = (data) => API.post('/payments/confirm', data);
 
+// Seller Request (Customer facing)
+export const submitSellerRequestAPI = (data) => API.post('/seller/request', data);
+export const getMySellerRequestAPI = () => API.get('/seller/request/me');
+
 // Cars
 export const getCarsAPI = (params) => API.get('/cars', { params });
 export const getCarByIdAPI = (id) => API.get(`/cars/${id}`);
@@ -102,6 +106,17 @@ export const getReviewsAPI = (params) =>
 
 export const deleteReviewAPI = (id) =>
   API.delete(`/reviews/${id}`);
+
+// ==================== Seller ====================
+
+export const getSellerBookingsAPI = () =>
+  API.get('/bookings/seller/my-bookings');
+
+export const updateSellerBookingStatusAPI = (id, status) =>
+  API.put(`/bookings/seller/${id}/status`, { status });
+
+export const getSellerCarsAPI = () =>
+  API.get('/cars/my-cars');
 
 // Admin - Vouchers
 export const getAdminVouchersAPI = () => API.get('/admin/vouchers');

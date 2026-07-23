@@ -70,6 +70,9 @@ const Navbar = () => {
     if (user.role === 'admin') {
       links.push({ name: 'Dashboard', path: '/admin' });
     }
+    if (user.role === 'seller') {
+      links.push({ name: 'Dashboard', path: '/seller-dashboard' });
+    }
     if (user.role === 'customer') {
       links.push({ name: 'Become a Partner', path: '/register-seller' });
     }
